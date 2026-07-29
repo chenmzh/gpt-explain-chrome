@@ -327,7 +327,7 @@ class AppServerClient {
     child.stdin.on("error", () => {});
 
     await this._request("initialize", {
-      clientInfo: { name: "gpt_explain_chrome", title: "GPT Explain Chrome", version: "0.3.1" }
+      clientInfo: { name: "gpt_explain_chrome", title: "GPT Explain Chrome", version: "0.3.2" }
     });
     this._send({ method: "initialized", params: {} });
     this.ready = true;
@@ -681,11 +681,24 @@ async function checkHealth(message, config) {
     const result = await server.request("account/read", { refreshToken: false });
     const account = result?.account;
     if (!account && result?.requiresOpenaiAuth) {
-      writeNativeMessage({ type: "healthResult", requestId, ok: false, message: "Codex 尚未登录，请在终端运行 codex login" });
+      writeNativeMessage({
+        type: "healthResult",
+        requestId,
+        ok: false,
+        code: "NOT_LOGGED_IN",
+        message: "Codex 尚未登录，请在终端运行 codex login"
+      });
       return;
     }
     if (account?.type && account.type !== "chatgpt") {
-      writeNativeMessage({ type: "healthResult", requestId, ok: false, message: `当前登录方式是 ${account.type}，请改用 ChatGPT 账号登录` });
+      writeNativeMessage({
+        type: "healthResult",
+        requestId,
+        ok: false,
+        code: "WRONG_ACCOUNT_TYPE",
+        accountType: account.type,
+        message: `当前登录方式是 ${account.type}，请改用 ChatGPT 账号登录`
+      });
       return;
     }
     const models = await getModelCatalog(server, true);
@@ -696,6 +709,8 @@ async function checkHealth(message, config) {
       requestId,
       ok: true,
       detail: `ChatGPT 已登录${suffix} · 默认 ${defaultModel.displayName} · 常驻连接已就绪`,
+      planType: account?.planType || "",
+      defaultModel: defaultModel.displayName,
       models
     });
   } catch (error) {

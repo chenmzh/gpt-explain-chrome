@@ -18,6 +18,7 @@ const requiredFiles = [
   "popup.js",
   "options.css",
   "options.js",
+  "options-i18n.js",
   "vendor/katex/katex.min.css",
   "vendor/katex/katex.min.js",
   "vendor/katex/contrib/auto-render.min.js",
@@ -39,6 +40,7 @@ const jsFiles = [
   "extension/window-layout.js",
   "extension/popup.js",
   "extension/options.js",
+  "extension/options-i18n.js",
   "native-host/host.cjs"
 ];
 

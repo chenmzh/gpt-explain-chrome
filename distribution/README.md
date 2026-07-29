@@ -25,6 +25,7 @@ Select text on a webpage, right-click, and ask GPT to explain it in a separate C
 
 - Select text on a normal webpage, right-click, and choose **用 GPT 解释…**.
 - Change the answer language in each result window: English is the fresh-install default; Chinese, German, French, Italian, and automatic source-language matching are available.
+- The Settings page follows the browser language automatically or can be switched among English, Chinese, German, French, and Italian. Interface and answer language are independent.
 - Select text inside an answer and use the same context-menu item to open a separate branch window.
 - Ask follow-up questions in the composer at the bottom. Language changes apply to the next answer.
 

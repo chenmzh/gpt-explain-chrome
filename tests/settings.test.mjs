@@ -10,10 +10,13 @@ import {
 
 test("new installs default to English and accept every supported answer language", () => {
   assert.equal(DEFAULT_SETTINGS.language, "en");
+  assert.equal(DEFAULT_SETTINGS.uiLanguage, "auto");
   for (const language of ["en", "zh-CN", "de", "fr", "it", "auto"]) {
     assert.equal(normalizeSettings({ language }).language, language);
   }
   assert.equal(normalizeSettings({ language: "unsupported" }).language, "en");
+  assert.equal(normalizeSettings({ uiLanguage: "de" }).uiLanguage, "de");
+  assert.equal(normalizeSettings({ uiLanguage: "unsupported" }).uiLanguage, "auto");
 });
 
 test("an explicit Terra selection wins even if a stale preset says balanced", () => {

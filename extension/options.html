@@ -1,62 +1,73 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>GPT 划词解释 · 设置</title>
+    <title>GPT Explain · Settings</title>
     <link rel="stylesheet" href="options.css">
   </head>
   <body>
     <div class="corner-index" aria-hidden="true">LEXI / 01</div>
     <main>
       <header>
+        <label class="interface-language">
+          <span data-i18n="interfaceLanguage">Interface language</span>
+          <select id="uiLanguage" name="uiLanguage">
+            <option value="auto" data-i18n="autoBrowser">Auto · Browser language</option>
+            <option value="en">English</option>
+            <option value="zh-CN">简体中文</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Français</option>
+            <option value="it">Italiano</option>
+          </select>
+        </label>
         <p class="eyebrow">LOCAL FIRST · CHATGPT SUBSCRIPTION</p>
-        <h1>解释，按你的方式。</h1>
-        <p class="lede">模型和推理强度由你决定；账号凭据始终留在 Codex 本地登录中。</p>
+        <h1 data-i18n="heroTitle">Explain it your way.</h1>
+        <p class="lede" data-i18n="heroLede">Choose the model and reasoning effort; account credentials stay in your local Codex login.</p>
       </header>
 
       <form id="settingsForm">
         <section class="section model-section">
           <div class="section-index">01</div>
           <div class="section-body">
-            <h2>模型与推理</h2>
-            <p class="section-note">均衡模式通过常驻连接提速，同时保留 GPT-5.6 的 medium 推理；你的订阅最终能使用哪些模型，以 Codex 当前账号为准。</p>
+            <h2 data-i18n="modelSectionTitle">Model &amp; reasoning</h2>
+            <p class="section-note" data-i18n="modelSectionNote">Balanced mode keeps a persistent connection for speed while retaining medium reasoning. Available models depend on the current Codex account.</p>
             <label class="preset-field">
-              <span>速度 / 准确性策略</span>
+              <span data-i18n="performanceStrategy">Speed / accuracy strategy</span>
               <select id="performanceMode" name="performanceMode">
-                <option value="balanced">均衡（推荐）· Sol / Medium</option>
-                <option value="fast">快速 · Terra / Low</option>
-                <option value="accurate">严谨 · Sol / High</option>
-                <option value="manual">自定义</option>
+                <option value="balanced" data-i18n="presetBalanced">Balanced (recommended) · Sol / Medium</option>
+                <option value="fast" data-i18n="presetFast">Fast · Terra / Low</option>
+                <option value="accurate" data-i18n="presetAccurate">Accurate · Sol / High</option>
+                <option value="manual" data-i18n="presetManual">Custom</option>
               </select>
             </label>
             <div class="field-grid">
               <label>
-                <span>模型</span>
+                <span data-i18n="model">Model</span>
                 <select id="model" name="model">
-                  <option value="">Codex 推荐（自动）</option>
+                  <option value="" data-i18n="modelAuto">Codex recommended (auto)</option>
                   <option value="gpt-5.6-sol">GPT-5.6 · Sol</option>
                   <option value="gpt-5.6-terra">GPT-5.6 · Terra</option>
                   <option value="gpt-5.6-luna">GPT-5.6 · Luna</option>
-                  <option value="custom">自定义模型名…</option>
+                  <option value="custom" data-i18n="customModelOption">Custom model name…</option>
                 </select>
               </label>
               <label>
-                <span>Reasoning 强度</span>
+                <span data-i18n="reasoning">Reasoning effort</span>
                 <select id="reasoning" name="reasoning">
-                  <option value="">模型默认</option>
-                  <option value="low">Low · 快速</option>
-                  <option value="medium">Medium · 均衡</option>
-                  <option value="high">High · 深入</option>
-                  <option value="xhigh">Extra High · 最深</option>
-                  <option value="max">Max · 极深</option>
-                  <option value="ultra">Ultra · 最大</option>
+                  <option value="" data-i18n="reasoningDefault">Model default</option>
+                  <option value="low" data-i18n="reasoningLow">Low · Fast</option>
+                  <option value="medium" data-i18n="reasoningMedium">Medium · Balanced</option>
+                  <option value="high" data-i18n="reasoningHigh">High · Deep</option>
+                  <option value="xhigh" data-i18n="reasoningXHigh">Extra High · Deeper</option>
+                  <option value="max" data-i18n="reasoningMax">Max · Very deep</option>
+                  <option value="ultra" data-i18n="reasoningUltra">Ultra · Maximum</option>
                 </select>
               </label>
             </div>
             <label id="customModelField" class="custom-field" hidden>
-              <span>自定义模型名</span>
-              <input id="customModel" name="customModel" type="text" maxlength="80" placeholder="例如 gpt-5.6-sol">
+              <span data-i18n="customModelLabel">Custom model name</span>
+              <input id="customModel" name="customModel" type="text" maxlength="80" placeholder="For example: gpt-5.6-sol" data-i18n-placeholder="customModelPlaceholder">
             </label>
           </div>
         </section>
@@ -64,25 +75,25 @@
         <section class="section">
           <div class="section-index">02</div>
           <div class="section-body">
-            <h2>回答风格</h2>
+            <h2 data-i18n="styleTitle">Answer style</h2>
             <div class="field-grid">
               <label>
-                <span>回答语言</span>
+                <span data-i18n="answerLanguage">Answer language</span>
                 <select id="language" name="language">
-                  <option value="en">English（默认）</option>
-                  <option value="zh-CN">简体中文</option>
-                  <option value="de">Deutsch</option>
-                  <option value="fr">Français</option>
-                  <option value="it">Italiano</option>
-                  <option value="auto">跟随原文</option>
+                  <option value="en" data-i18n="answerEnglish">English (default)</option>
+                  <option value="zh-CN" data-i18n="answerChinese">Simplified Chinese</option>
+                  <option value="de" data-i18n="answerGerman">German</option>
+                  <option value="fr" data-i18n="answerFrench">French</option>
+                  <option value="it" data-i18n="answerItalian">Italian</option>
+                  <option value="auto" data-i18n="answerAuto">Match selected text</option>
                 </select>
               </label>
               <label>
-                <span>回答长度</span>
+                <span data-i18n="responseLength">Answer length</span>
                 <select id="responseLength" name="responseLength">
-                  <option value="brief">简短</option>
-                  <option value="normal">标准</option>
-                  <option value="detailed">详细</option>
+                  <option value="brief" data-i18n="lengthBrief">Brief</option>
+                  <option value="normal" data-i18n="lengthNormal">Standard</option>
+                  <option value="detailed" data-i18n="lengthDetailed">Detailed</option>
                 </select>
               </label>
             </div>
@@ -92,10 +103,11 @@
         <section class="section prompt-section">
           <div class="section-index">03</div>
           <div class="section-body">
-            <h2>解释提示词</h2>
-            <p class="section-note">可使用 <code>{{text}}</code>、<code>{{title}}</code>、<code>{{url}}</code> 和 <code>{{language}}</code>。</p>
+            <h2 data-i18n="promptTitle">Explanation prompt</h2>
+            <p class="section-note"><span data-i18n="promptNotePrefix">Available variables:</span> <code>{{text}}</code>, <code>{{title}}</code>, <code>{{url}}</code>, <code>{{language}}</code>.</p>
+            <p class="section-note prompt-language-note" data-i18n="promptLanguageNote">The default template is written in English; Answer language still controls the generated response.</p>
             <label class="textarea-label">
-              <span class="sr-only">提示词模板</span>
+              <span class="sr-only" data-i18n="promptTemplate">Prompt template</span>
               <textarea id="promptTemplate" name="promptTemplate" rows="13" maxlength="8000" spellcheck="false"></textarea>
             </label>
           </div>
@@ -104,26 +116,26 @@
         <section class="section connection-section">
           <div class="section-index">04</div>
           <div class="section-body">
-            <h2>本地连接</h2>
+            <h2 data-i18n="connectionSectionTitle">Local connection</h2>
             <div class="connection-card">
               <div>
                 <span id="connectionDot" class="connection-dot"></span>
-                <strong id="connectionTitle">尚未检测</strong>
-                <p id="connectionDetail">安装 Native Host 后，在这里检查 Codex 登录状态。</p>
+                <strong id="connectionTitle" data-i18n="connectionUntested">Not checked</strong>
+                <p id="connectionDetail" data-i18n="connectionHelp">Install the Native Host, then check the Codex login here.</p>
               </div>
-              <button id="checkConnection" class="secondary-button" type="button">检测连接</button>
+              <button id="checkConnection" class="secondary-button" type="button" data-i18n="checkConnection">Check connection</button>
             </div>
-            <p class="extension-id">扩展 ID：<code id="extensionId">—</code> <button id="copyId" type="button">复制</button></p>
+            <p class="extension-id"><span data-i18n="extensionId">Extension ID:</span> <code id="extensionId">—</code> <button id="copyId" type="button" data-i18n="copy">Copy</button></p>
           </div>
         </section>
 
         <div class="actions">
-          <button id="resetButton" class="secondary-button" type="button">恢复默认</button>
-          <button class="primary-button" type="submit">保存设置</button>
+          <button id="resetButton" class="secondary-button" type="button" data-i18n="resetDefaults">Restore defaults</button>
+          <button class="primary-button" type="submit" data-i18n="saveSettings">Save settings</button>
         </div>
       </form>
     </main>
-    <div id="saveToast" class="save-toast" role="status" aria-live="polite">设置已保存</div>
+    <div id="saveToast" class="save-toast" role="status" aria-live="polite" data-i18n="settingsSaved">Settings saved</div>
     <script type="module" src="options.js"></script>
   </body>
 </html>

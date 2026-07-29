@@ -44,6 +44,18 @@ main {
 
 header { max-width: 680px; margin-bottom: 68px; }
 
+.interface-language {
+  display: block;
+  width: min(250px, 100%);
+  margin: -38px 0 42px auto;
+}
+
+.interface-language select {
+  height: 40px;
+  background-color: rgba(255, 250, 241, .78);
+  font-size: 13px;
+}
+
 .eyebrow {
   margin: 0 0 14px;
   color: var(--accent);
@@ -57,6 +69,7 @@ h1 {
   margin: 0;
   font: 600 clamp(48px, 7vw, 76px)/.95 var(--display);
   letter-spacing: -.055em;
+  overflow-wrap: anywhere;
 }
 
 .lede {
@@ -87,12 +100,16 @@ h1 {
   font: 600 26px/1.2 var(--display);
 }
 
+.section-body { min-width: 0; }
+
 .section-note {
   margin: 0 0 24px;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
 }
+
+.prompt-language-note { margin-top: -14px; }
 
 .field-grid {
   display: grid;
@@ -110,6 +127,7 @@ label > span {
 }
 
 select, input, textarea {
+  min-width: 0;
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 0;
@@ -147,7 +165,9 @@ code { font-family: "SFMono-Regular", Consolas, monospace; color: #7e3027; }
 }
 
 .connection-card strong { vertical-align: middle; }
+.connection-card > div { min-width: 0; }
 .connection-card p { margin: 6px 0 0 18px; color: var(--muted); font-size: 12px; }
+.connection-card p, .section-note { overflow-wrap: anywhere; }
 
 .connection-dot {
   display: inline-block;
@@ -223,11 +243,12 @@ button {
   main { width: min(100% - 34px, 920px); padding-top: 64px; }
   .corner-index { display: none; }
   header { margin-bottom: 48px; }
+  .interface-language { width: 100%; margin: 0 0 38px; }
   .section { grid-template-columns: 35px minmax(0, 1fr); gap: 10px; }
   .field-grid { grid-template-columns: 1fr; }
   .connection-card { align-items: stretch; flex-direction: column; }
   .actions { justify-content: stretch; }
-  .actions button { flex: 1; }
+  .actions button { flex: 1; min-width: 0; min-height: 56px; padding: 10px; white-space: normal; }
 }
 
 @media (prefers-reduced-motion: reduce) {

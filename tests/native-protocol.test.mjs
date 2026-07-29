@@ -77,6 +77,7 @@ test("native protocol reports health and returns an explanation", async (t) => {
   const health = await client.waitFor((message) => message.type === "healthResult");
   assert.equal(health.ok, true);
   assert.equal(health.models[0].id, "gpt-5.6-sol");
+  assert.equal(health.defaultModel, "GPT-5.6-Sol");
 
   client.send({
     type: "explain",

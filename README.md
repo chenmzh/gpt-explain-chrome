@@ -26,6 +26,7 @@
 - 性能策略只负责填写推荐组合；手动选择模型或 reasoning 后，以界面中的明确选择为准
 - 选择 Low、Medium、High、Extra High reasoning
 - 在解释窗口直接切换 English（新安装默认）、简体中文、Deutsch、Français、Italiano 或跟随原文；下一条解释或追问生效
+- 设置页界面可自动跟随浏览器，或手动切换 English、简体中文、Deutsch、Français、Italiano；界面语言与回答语言互不影响
 - 本地检查 Codex 安装及登录状态
 - 最长处理 50,000 个字符
 
@@ -77,7 +78,7 @@ chmod +x native-host/install-macos.sh native-host/uninstall-macos.sh
 
 ### 给其他人安装
 
-使用同版本的 `GPT-Explain-Chrome-macOS-v0.3.1.zip` 分享包。它只包含扩展、Native Host、双击安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。接收者解压后双击 `Install.command`，并用自己的扩展 ID 与自己的 `codex login` 完成安装。
+使用同版本的 `GPT-Explain-Chrome-macOS-v0.3.2.zip` 分享包。它只包含扩展、Native Host、双击安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。接收者解压后双击 `Install.command`，并用自己的扩展 ID 与自己的 `codex login` 完成安装。
 
 普通 Chrome 通常会限制从 Chrome Web Store 之外直接安装 CRX，因此本项目的自用分享版采用“解压后加载 `extension` 文件夹 + 本地 Host 安装程序”。如需面向公众的一键安装和自动更新，仍需发布 Chrome Web Store，并另外分发 Native Host 安装器。
 
@@ -90,7 +91,7 @@ chmod +x native-host/install-macos.sh native-host/uninstall-macos.sh
 5. 在回答里再次选中文字并右键，会打开继承当前上下文的新分支窗口。
 6. 在窗口底部输入问题，可继续当前窗口的对话；按 Enter 发送，Shift+Enter 换行。
 
-在扩展设置页可以选择模型、reasoning 强度、语言、回答长度和提示词。
+在扩展设置页可以选择界面语言、模型、reasoning 强度、回答语言、回答长度和提示词。
 
 ## 提示词变量
 

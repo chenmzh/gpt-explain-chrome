@@ -3,6 +3,7 @@ export const MENU_ID = "gpt-explain-selection";
 export const MAX_SELECTION_LENGTH = 50_000;
 
 export const ANSWER_LANGUAGES = Object.freeze(["en", "zh-CN", "de", "fr", "it", "auto"]);
+export const UI_LANGUAGES = Object.freeze(["auto", "en", "zh-CN", "de", "fr", "it"]);
 
 export const DEFAULT_PROMPT_TEMPLATE = `Please explain the selected text.
 
@@ -16,6 +17,7 @@ Selected text:
 {{text}}`;
 
 export const DEFAULT_SETTINGS = Object.freeze({
+  uiLanguage: "auto",
   performanceMode: "balanced",
   model: "gpt-5.6-sol",
   customModel: "",
@@ -43,6 +45,9 @@ export function normalizeSettings(value = {}) {
   const language = ANSWER_LANGUAGES.includes(merged.language)
     ? merged.language
     : DEFAULT_SETTINGS.language;
+  const uiLanguage = UI_LANGUAGES.includes(merged.uiLanguage)
+    ? merged.uiLanguage
+    : DEFAULT_SETTINGS.uiLanguage;
   const model = typeof merged.model === "string" ? merged.model.slice(0, 80) : "";
   const customModel = typeof merged.customModel === "string"
     ? merged.customModel.trim().slice(0, 80)
@@ -51,7 +56,7 @@ export function normalizeSettings(value = {}) {
     ? merged.promptTemplate.slice(0, 8_000)
     : DEFAULT_PROMPT_TEMPLATE;
 
-  return { performanceMode, model, customModel, reasoning, language, responseLength, promptTemplate };
+  return { uiLanguage, performanceMode, model, customModel, reasoning, language, responseLength, promptTemplate };
 }
 
 export function effectiveModel(settings) {

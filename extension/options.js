@@ -1,7 +1,12 @@
 import { DEFAULT_SETTINGS, normalizeSettings } from "./default-settings.js";
+import { createTranslator } from "./options-i18n.js";
 
+const params = new URLSearchParams(location.search);
+const isPreview = params.has("preview");
+const previewLanguage = params.get("lang");
 const form = document.querySelector("#settingsForm");
 const fields = {
+  uiLanguage: document.querySelector("#uiLanguage"),
   performanceMode: document.querySelector("#performanceMode"),
   model: document.querySelector("#model"),
   customModel: document.querySelector("#customModel"),
@@ -19,7 +24,64 @@ const connection = {
 };
 const toast = document.querySelector("#saveToast");
 let toastTimer = null;
-const isPreview = new URLSearchParams(location.search).has("preview");
+let i18n = createTranslator("auto", navigator.language);
+let currentModels = [];
+let connectionState = {
+  kind: "",
+  titleKey: "connectionUntested",
+  detailKey: "connectionHelp",
+  replacements: {}
+};
+
+function t(key, replacements) {
+  return i18n.t(key, replacements);
+}
+
+function renderConnection() {
+  connection.dot.className = `connection-dot ${connectionState.kind}`;
+  connection.title.textContent = t(connectionState.titleKey, connectionState.replacements);
+  connection.detail.textContent = t(connectionState.detailKey, connectionState.replacements);
+}
+
+function setConnection(kind, titleKey, detailKey, replacements = {}) {
+  connectionState = { kind, titleKey, detailKey, replacements };
+  renderConnection();
+}
+
+function updateModelOptions(models) {
+  if (!Array.isArray(models) || !models.length) return;
+  currentModels = models;
+  const selected = fields.model.value;
+  const customOption = [...fields.model.options].find((option) => option.value === "custom");
+  for (const option of [...fields.model.options]) {
+    if (option.value && option.value !== "custom") option.remove();
+  }
+  for (const model of models) {
+    if (!model?.id) continue;
+    const option = document.createElement("option");
+    option.value = model.id;
+    option.textContent = `${model.displayName || model.id}${model.isDefault ? ` · ${t("accountDefault")}` : ""}`;
+    fields.model.insertBefore(option, customOption || null);
+  }
+  fields.model.value = [...fields.model.options].some((option) => option.value === selected)
+    ? selected
+    : "";
+  updateCustomField();
+}
+
+function applyLanguage(preference) {
+  i18n = createTranslator(preference, navigator.language);
+  document.documentElement.lang = i18n.locale;
+  document.title = t("pageTitle");
+  for (const element of document.querySelectorAll("[data-i18n]")) {
+    element.textContent = t(element.dataset.i18n);
+  }
+  for (const element of document.querySelectorAll("[data-i18n-placeholder]")) {
+    element.placeholder = t(element.dataset.i18nPlaceholder);
+  }
+  if (currentModels.length) updateModelOptions(currentModels);
+  renderConnection();
+}
 
 function updateCustomField() {
   fields.customModelField.hidden = fields.model.value !== "custom";
@@ -47,14 +109,19 @@ function updatePresetFields(applyValues = true) {
 
 function fillForm(settings) {
   const value = normalizeSettings(settings);
-  for (const key of ["performanceMode", "model", "customModel", "reasoning", "language", "responseLength", "promptTemplate"]) {
+  for (const key of [
+    "uiLanguage", "performanceMode", "model", "customModel", "reasoning",
+    "language", "responseLength", "promptTemplate"
+  ]) {
     fields[key].value = value[key];
   }
+  applyLanguage(value.uiLanguage);
   updatePresetFields(false);
 }
 
 function readForm() {
   return normalizeSettings({
+    uiLanguage: fields.uiLanguage.value,
     performanceMode: fields.performanceMode.value,
     model: fields.model.value,
     customModel: fields.customModel.value,
@@ -65,38 +132,14 @@ function readForm() {
   });
 }
 
-function showToast() {
+function showToast(messageKey = "settingsSaved") {
+  toast.textContent = t(messageKey);
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("show"), 1700);
 }
 
-function setConnection(kind, title, detail) {
-  connection.dot.className = `connection-dot ${kind}`;
-  connection.title.textContent = title;
-  connection.detail.textContent = detail;
-}
-
-function updateModelOptions(models) {
-  if (!Array.isArray(models) || !models.length) return;
-  const selected = fields.model.value;
-  const customOption = [...fields.model.options].find((option) => option.value === "custom");
-  for (const option of [...fields.model.options]) {
-    if (option.value && option.value !== "custom") option.remove();
-  }
-  for (const model of models) {
-    if (!model?.id) continue;
-    const option = document.createElement("option");
-    option.value = model.id;
-    option.textContent = `${model.displayName || model.id}${model.isDefault ? " · 账号默认" : ""}`;
-    fields.model.insertBefore(option, customOption || null);
-  }
-  fields.model.value = [...fields.model.options].some((option) => option.value === selected)
-    ? selected
-    : "";
-  updateCustomField();
-}
-
+fields.uiLanguage.addEventListener("change", () => applyLanguage(fields.uiLanguage.value));
 fields.performanceMode.addEventListener("change", () => updatePresetFields(true));
 fields.model.addEventListener("change", () => {
   fields.performanceMode.value = "manual";
@@ -120,28 +163,39 @@ form.addEventListener("submit", async (event) => {
 document.querySelector("#resetButton").addEventListener("click", () => fillForm(DEFAULT_SETTINGS));
 
 document.querySelector("#checkConnection").addEventListener("click", async () => {
-  setConnection("checking", "正在检测", "正在连接 Native Host 并检查 Codex 登录状态…");
+  setConnection("checking", "checking", "checkingHost");
   const response = await chrome.runtime.sendMessage({ type: "checkHost" });
-  if (!response?.ok) setConnection("error", "连接失败", response?.error || "无法连接本地 Host");
+  if (!response?.ok) setConnection("error", "connectionFailed", "hostUnavailable");
 });
 
 document.querySelector("#copyId").addEventListener("click", async () => {
   await navigator.clipboard.writeText(chrome.runtime.id);
-  showToast();
+  showToast("copied");
 });
 
 if (!isPreview) {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === "healthProgress") {
-      setConnection("checking", "正在检测", message.message || "正在连接 Codex…");
+      setConnection("checking", "checking", "connectingCodex");
       return;
     }
     if (message.type !== "healthResult") return;
     if (message.ok) {
       updateModelOptions(message.models);
-      setConnection("ok", "连接正常", message.detail || "Codex 已安装并登录");
+      const defaultModel = message.defaultModel
+        || message.models?.find((model) => model.isDefault)?.displayName
+        || message.models?.find((model) => model.isDefault)?.id
+        || "Codex";
+      setConnection("ok", "connectionOk", "connectionReady", {
+        plan: message.planType ? ` · ${message.planType}` : "",
+        model: defaultModel
+      });
+    } else if (message.code === "NOT_LOGGED_IN") {
+      setConnection("error", "connectionFailed", "loginRequired");
+    } else if (message.code === "WRONG_ACCOUNT_TYPE") {
+      setConnection("error", "connectionFailed", "wrongAccountType", { accountType: message.accountType || "API" });
     } else {
-      setConnection("error", "连接失败", message.message || "请重新安装 Native Host");
+      setConnection("error", "connectionFailed", "reinstallHost");
     }
   });
 }
@@ -153,9 +207,14 @@ async function initialize() {
 }
 
 if (isPreview) {
-  fillForm(DEFAULT_SETTINGS);
+  fillForm({
+    ...DEFAULT_SETTINGS,
+    uiLanguage: ["en", "zh-CN", "de", "fr", "it", "auto"].includes(previewLanguage)
+      ? previewLanguage
+      : "en"
+  });
   document.querySelector("#extensionId").textContent = "abcdefghijklmnopabcdefghijklmnop";
-  setConnection("ok", "连接正常", "Logged in using ChatGPT");
+  setConnection("ok", "connectionOk", "connectionReady", { plan: " · Plus", model: "GPT-5.6-Sol" });
 } else {
-  initialize().catch((error) => setConnection("error", "读取设置失败", error.message));
+  initialize().catch(() => setConnection("error", "connectionFailed", "readSettingsFailed"));
 }
