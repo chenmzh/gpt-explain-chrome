@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GPT 划词解释 · 设置</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <div class="corner-index" aria-hidden="true">LEXI / 01</div>
+    <main>
+      <header>
+        <p class="eyebrow">LOCAL FIRST · CHATGPT SUBSCRIPTION</p>
+        <h1>解释，按你的方式。</h1>
+        <p class="lede">模型和推理强度由你决定；账号凭据始终留在 Codex 本地登录中。</p>
+      </header>
+
+      <form id="settingsForm">
+        <section class="section model-section">
+          <div class="section-index">01</div>
+          <div class="section-body">
+            <h2>模型与推理</h2>
+            <p class="section-note">均衡模式通过常驻连接提速，同时保留 GPT-5.6 的 medium 推理；你的订阅最终能使用哪些模型，以 Codex 当前账号为准。</p>
+            <label class="preset-field">
+              <span>速度 / 准确性策略</span>
+              <select id="performanceMode" name="performanceMode">
+                <option value="balanced">均衡（推荐）· Sol / Medium</option>
+                <option value="fast">快速 · Terra / Low</option>
+                <option value="accurate">严谨 · Sol / High</option>
+                <option value="manual">自定义</option>
+              </select>
+            </label>
+            <div class="field-grid">
+              <label>
+                <span>模型</span>
+                <select id="model" name="model">
+                  <option value="">Codex 推荐（自动）</option>
+                  <option value="gpt-5.6-sol">GPT-5.6 · Sol</option>
+                  <option value="gpt-5.6-terra">GPT-5.6 · Terra</option>
+                  <option value="gpt-5.6-luna">GPT-5.6 · Luna</option>
+                  <option value="custom">自定义模型名…</option>
+                </select>
+              </label>
+              <label>
+                <span>Reasoning 强度</span>
+                <select id="reasoning" name="reasoning">
+                  <option value="">模型默认</option>
+                  <option value="low">Low · 快速</option>
+                  <option value="medium">Medium · 均衡</option>
+                  <option value="high">High · 深入</option>
+                  <option value="xhigh">Extra High · 最深</option>
+                  <option value="max">Max · 极深</option>
+                  <option value="ultra">Ultra · 最大</option>
+                </select>
+              </label>
+            </div>
+            <label id="customModelField" class="custom-field" hidden>
+              <span>自定义模型名</span>
+              <input id="customModel" name="customModel" type="text" maxlength="80" placeholder="例如 gpt-5.6-sol">
+            </label>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-index">02</div>
+          <div class="section-body">
+            <h2>回答风格</h2>
+            <div class="field-grid">
+              <label>
+                <span>回答语言</span>
+                <select id="language" name="language">
+                  <option value="en">English（默认）</option>
+                  <option value="zh-CN">简体中文</option>
+                  <option value="de">Deutsch</option>
+                  <option value="fr">Français</option>
+                  <option value="it">Italiano</option>
+                  <option value="auto">跟随原文</option>
+                </select>
+              </label>
+              <label>
+                <span>回答长度</span>
+                <select id="responseLength" name="responseLength">
+                  <option value="brief">简短</option>
+                  <option value="normal">标准</option>
+                  <option value="detailed">详细</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="section prompt-section">
+          <div class="section-index">03</div>
+          <div class="section-body">
+            <h2>解释提示词</h2>
+            <p class="section-note">可使用 <code>{{text}}</code>、<code>{{title}}</code>、<code>{{url}}</code> 和 <code>{{language}}</code>。</p>
+            <label class="textarea-label">
+              <span class="sr-only">提示词模板</span>
+              <textarea id="promptTemplate" name="promptTemplate" rows="13" maxlength="8000" spellcheck="false"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section class="section connection-section">
+          <div class="section-index">04</div>
+          <div class="section-body">
+            <h2>本地连接</h2>
+            <div class="connection-card">
+              <div>
+                <span id="connectionDot" class="connection-dot"></span>
+                <strong id="connectionTitle">尚未检测</strong>
+                <p id="connectionDetail">安装 Native Host 后，在这里检查 Codex 登录状态。</p>
+              </div>
+              <button id="checkConnection" class="secondary-button" type="button">检测连接</button>
+            </div>
+            <p class="extension-id">扩展 ID：<code id="extensionId">—</code> <button id="copyId" type="button">复制</button></p>
+          </div>
+        </section>
+
+        <div class="actions">
+          <button id="resetButton" class="secondary-button" type="button">恢复默认</button>
+          <button class="primary-button" type="submit">保存设置</button>
+        </div>
+      </form>
+    </main>
+    <div id="saveToast" class="save-toast" role="status" aria-live="polite">设置已保存</div>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

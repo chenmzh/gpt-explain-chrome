@@ -1,0 +1,10 @@
+.DS_Store
+.idea/
+.vscode/
+dist/
+*.crx
+*.pem
+*.key
+native-host/config.json
+options-preview.png
+popup-preview.png

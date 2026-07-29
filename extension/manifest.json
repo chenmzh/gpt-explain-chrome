@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "GPT 划词解释",
+  "description": "选中文字，通过本机 Codex 和 ChatGPT 订阅获得解释。",
+  "version": "0.3.1",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "contextMenus",
+    "nativeMessaging",
+    "storage",
+    "system.display"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "options_page": "options.html",
+  "action": {
+    "default_title": "打开 GPT 划词解释"
+  }
+}

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GPT 划词解释</title>
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <div class="paper-grain" aria-hidden="true"></div>
+    <main class="shell">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">LEXI · LOCAL CODEX</p>
+          <h1>划词解释</h1>
+        </div>
+        <button id="settingsButton" class="icon-button" type="button" aria-label="打开设置" title="设置">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg>
+        </button>
+      </header>
+
+      <section id="emptyState" class="empty-state">
+        <span class="selection-mark" aria-hidden="true">Aa</span>
+        <h2>选中，然后理解。</h2>
+        <p>在任意网页选中文字，右键选择<br><strong>“用 GPT 解释”</strong>。</p>
+        <button id="checkButton" class="text-button" type="button">检查本地连接 →</button>
+        <p id="healthText" class="health-text" aria-live="polite"></p>
+      </section>
+
+      <section id="resultView" class="result-view" hidden>
+        <div class="meta-row" aria-label="当前模型配置">
+          <span id="modelBadge" class="badge"></span>
+          <span id="reasoningBadge" class="badge"></span>
+          <label class="language-picker" title="设置回答语言（下一条回答生效）">
+            <span class="sr-only">回答语言</span>
+            <select id="languageSelect" aria-label="回答语言">
+              <option value="en">EN</option>
+              <option value="zh-CN">中文</option>
+              <option value="de">DE</option>
+              <option value="fr">FR</option>
+              <option value="it">IT</option>
+              <option value="auto">AUTO</option>
+            </select>
+          </label>
+          <span id="branchBadge" class="badge branch-badge" hidden>分支解释</span>
+          <span id="statusBadge" class="status-badge"><i></i><span></span></span>
+        </div>
+
+        <details class="source-card">
+          <summary>
+            <span>原文</span>
+            <span id="sourceCount" class="source-count"></span>
+          </summary>
+          <blockquote id="sourceText"></blockquote>
+          <p id="sourceMeta" class="source-meta"></p>
+          <p id="truncatedNotice" class="notice" hidden>原文较长，已截取前 50,000 个字符。</p>
+        </details>
+
+        <section id="conversationMessages" class="conversation-messages" aria-live="polite"></section>
+      </section>
+    </main>
+
+    <footer id="conversationDock" class="conversation-dock" hidden>
+      <div class="toolbar-actions">
+        <button id="copyButton" type="button">复制对话</button>
+        <button id="retryButton" type="button">重新解释</button>
+        <button id="stopButton" class="stop-button" type="button">停止</button>
+      </div>
+      <form id="followupForm" class="followup-form">
+        <label class="sr-only" for="followupInput">继续追问</label>
+        <textarea id="followupInput" rows="1" maxlength="12000" placeholder="继续追问这条解释…"></textarea>
+        <button id="sendButton" type="submit" aria-label="发送追问">发送</button>
+      </form>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="vendor/katex/katex.min.js"></script>
+    <script src="vendor/katex/contrib/auto-render.min.js"></script>
+    <script src="vendor/marked/marked.umd.js"></script>
+    <script src="vendor/dompurify/purify.min.js"></script>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
