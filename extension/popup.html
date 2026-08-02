@@ -15,9 +15,14 @@
           <p class="eyebrow">LEXI · LOCAL CODEX</p>
           <h1>划词解释</h1>
         </div>
-        <button id="settingsButton" class="icon-button" type="button" aria-label="打开设置" title="设置">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg>
-        </button>
+        <div class="masthead-actions">
+          <button id="libraryButton" class="icon-button" type="button" aria-label="打开解释资料库" title="解释资料库">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Zm3 16a3 3 0 0 1 0-6h11M9 8h6"/></svg>
+          </button>
+          <button id="settingsButton" class="icon-button" type="button" aria-label="打开设置" title="设置">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg>
+          </button>
+        </div>
       </header>
 
       <section id="emptyState" class="empty-state">
@@ -47,15 +52,32 @@
           <span id="statusBadge" class="status-badge"><i></i><span></span></span>
         </div>
 
-        <details class="source-card">
-          <summary>
-            <span>原文</span>
+        <section class="source-card" aria-labelledby="sourceHeading">
+          <div class="source-heading">
+            <span id="sourceHeading">解释对象</span>
             <span id="sourceCount" class="source-count"></span>
-          </summary>
+          </div>
           <blockquote id="sourceText"></blockquote>
-          <p id="sourceMeta" class="source-meta"></p>
+          <p class="source-meta-row">
+            <span id="sourceMeta" class="source-meta"></span>
+            <a id="sourceLink" class="source-link" target="_blank" rel="noopener noreferrer">打开原网页 ↗</a>
+          </p>
           <p id="truncatedNotice" class="notice" hidden>原文较长，已截取前 50,000 个字符。</p>
-        </details>
+
+          <div id="parentRelation" class="relation-panel parent-relation" hidden>
+            <span class="relation-kicker">来源指针</span>
+            <q id="parentQuote"></q>
+            <button id="parentButton" class="relation-button" type="button">回到选取位置 ↖</button>
+          </div>
+
+          <div id="childrenRelation" class="relation-panel children-relation" hidden>
+            <div class="relation-heading">
+              <span class="relation-kicker">由此产生的解释</span>
+              <span id="childrenCount" class="relation-count"></span>
+            </div>
+            <div id="childrenList" class="children-list"></div>
+          </div>
+        </section>
 
         <section id="conversationMessages" class="conversation-messages" aria-live="polite"></section>
       </section>

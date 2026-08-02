@@ -9,10 +9,20 @@ import {
   normalizeSettings
 } from "./default-settings.js";
 import { choosePopupPlacement } from "./window-layout.js";
+import {
+  deleteArchiveRecord,
+  getArchiveRecord,
+  getRecordRelations,
+  listArchiveRecords,
+  putArchiveEdge,
+  putArchiveState
+} from "./archive-db.js";
 
 const POPUP_WINDOWS_KEY = "resultPopupWindows";
 const LATEST_RESULT_KEY = "latestResultId";
 const STATE_PREFIX = "resultState:";
+const SELECTION_PREFIX = "resultSelection:";
+const FOCUS_PREFIX = "resultFocus:";
 const POPUP_WIDTH = 420;
 const POPUP_HEIGHT = 620;
 const MAX_FOLLOWUP_LENGTH = 12_000;
@@ -27,6 +37,7 @@ const popupPromises = new Map();
 const stateCache = new Map();
 const persistenceTimers = new Map();
 const requestToResult = new Map();
+const selectionAnchors = new Map();
 
 function makeId(prefix = "req") {
   return `${prefix}-${Date.now()}-${crypto.randomUUID()}`;
@@ -34,6 +45,14 @@ function makeId(prefix = "req") {
 
 function stateKey(resultId) {
   return `${STATE_PREFIX}${resultId}`;
+}
+
+function selectionKey(resultId) {
+  return `${SELECTION_PREFIX}${resultId}`;
+}
+
+function focusKey(resultId) {
+  return `${FOCUS_PREFIX}${resultId}`;
 }
 
 async function createContextMenu() {
@@ -71,6 +90,14 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
   for (const [resultId, storedWindowId] of Object.entries(windows)) {
     if (storedWindowId === windowId) {
       delete windows[resultId];
+      const state = stateCache.get(resultId);
+      if (state && state.status !== "running") {
+        stateCache.delete(resultId);
+        const timer = persistenceTimers.get(resultId);
+        if (timer) clearTimeout(timer);
+        persistenceTimers.delete(resultId);
+        await chrome.storage.session.remove(stateKey(resultId));
+      }
       changed = true;
     }
   }
@@ -155,7 +182,8 @@ function openResultPopup(resultId, referenceWindowId) {
 
 chrome.action.onClicked.addListener(async (tab) => {
   const stored = await chrome.storage.session.get(LATEST_RESULT_KEY);
-  const resultId = stored[LATEST_RESULT_KEY] || makeId("result");
+  const latestArchive = stored[LATEST_RESULT_KEY] ? null : (await listArchiveRecords())[0];
+  const resultId = stored[LATEST_RESULT_KEY] || latestArchive?.id || makeId("result");
   if (!stored[LATEST_RESULT_KEY]) await setLatestResult(resultId);
   await openResultPopup(resultId, tab?.windowId);
 });
@@ -163,6 +191,24 @@ chrome.action.onClicked.addListener(async (tab) => {
 async function loadSettings() {
   const stored = await chrome.storage.local.get("settings");
   return normalizeSettings(stored.settings || DEFAULT_SETTINGS);
+}
+
+async function migrateSessionStatesToArchive() {
+  const stored = await chrome.storage.session.get(null);
+  const states = Object.entries(stored)
+    .filter(([key, value]) => key.startsWith(STATE_PREFIX) && value?.resultId)
+    .map(([, value]) => value);
+  for (const state of states) {
+    await putArchiveState(state);
+    if (state.parentResultId) {
+      await putArchiveEdge(
+        state.parentResultId,
+        state.resultId,
+        state.sourceAnchor,
+        state.createdAt
+      );
+    }
+  }
 }
 
 async function saveState(resultId, nextState, persistImmediately = false) {
@@ -173,6 +219,8 @@ async function saveState(resultId, nextState, persistImmediately = false) {
   if (previousTimer) clearTimeout(previousTimer);
   if (persistImmediately) {
     await chrome.storage.session.set({ [stateKey(resultId)]: nextState });
+    await putArchiveState(nextState).catch((error) => console.error("Archive write failed", error));
+    chrome.runtime.sendMessage({ type: "archiveUpdated", recordId: resultId }).catch(() => {});
     persistenceTimers.delete(resultId);
     return;
   }
@@ -188,9 +236,50 @@ async function readState(resultId) {
   if (stateCache.has(resultId)) return stateCache.get(resultId);
   const key = stateKey(resultId);
   const stored = await chrome.storage.session.get(key);
-  const state = stored[key] || null;
+  let state = stored[key] || await getArchiveRecord(resultId);
+  if (state?.status === "running" && !stored[key]) {
+    const next = updateCurrentAssistant(state, (answer) => ({
+      ...answer,
+      status: "error",
+      error: "浏览器重启后生成连接已结束，可以重新解释或继续追问。"
+    }));
+    state = {
+      ...next,
+      status: "error",
+      statusText: "已从本地资料库恢复",
+      error: "浏览器重启后生成连接已结束，可以重新解释或继续追问。",
+      updatedAt: Date.now()
+    };
+    await putArchiveState(state);
+  }
   if (state) stateCache.set(resultId, state);
   return state;
+}
+
+async function saveSelectionAnchor(resultId, anchor) {
+  if (!resultId || !anchor?.quote) return;
+  selectionAnchors.set(resultId, { ...anchor, capturedAt: Date.now() });
+  await chrome.storage.session.set({
+    [selectionKey(resultId)]: selectionAnchors.get(resultId)
+  });
+}
+
+async function consumeSelectionAnchor(resultId) {
+  if (!resultId) return null;
+  const key = selectionKey(resultId);
+  const stored = await chrome.storage.session.get(key);
+  await chrome.storage.session.remove(key);
+  const anchor = selectionAnchors.get(resultId) || stored[key] || null;
+  selectionAnchors.delete(resultId);
+  return anchor && Date.now() - (anchor.capturedAt || 0) < 60_000 ? anchor : null;
+}
+
+async function focusArchivedRecord(recordId, anchor, referenceWindowId) {
+  const state = await readState(recordId);
+  if (!state?.source?.text) throw new Error("本地资料库中找不到这条记录");
+  if (anchor) await chrome.storage.session.set({ [focusKey(recordId)]: anchor });
+  await openResultPopup(recordId, referenceWindowId);
+  chrome.runtime.sendMessage({ type: "focusAnchor", resultId: recordId, anchor }).catch(() => {});
 }
 
 async function markCachedRunsDisconnected(detail) {
@@ -314,7 +403,7 @@ function parseParentResultId(url) {
   } catch { return ""; }
 }
 
-async function startExplanation(resultId, source, parentState = null) {
+async function startExplanation(resultId, source, parentState = null, sourceAnchor = null) {
   const settings = await loadSettings();
   const selectedText = (source.text || "").trim();
   if (!selectedText) throw new Error("没有可解释的选中文本");
@@ -327,6 +416,7 @@ async function startExplanation(resultId, source, parentState = null) {
     resultId,
     conversationId: resultId,
     parentResultId: parentState?.resultId || "",
+    sourceAnchor: sourceAnchor || null,
     requestId,
     currentMessageId: answerId,
     mode: "explain",
@@ -350,6 +440,11 @@ async function startExplanation(resultId, source, parentState = null) {
     updatedAt: Date.now()
   };
   await saveState(resultId, state, true);
+  if (parentState?.resultId) {
+    await putArchiveEdge(parentState.resultId, resultId, sourceAnchor, state.createdAt);
+    chrome.runtime.sendMessage({ type: "relationsUpdated", resultId: parentState.resultId }).catch(() => {});
+    chrome.runtime.sendMessage({ type: "archiveUpdated", recordId: resultId }).catch(() => {});
+  }
   requestToResult.set(requestId, resultId);
 
   try {
@@ -442,26 +537,86 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== MENU_ID || !info.selectionText) return;
   const parentResultId = parseParentResultId(info.pageUrl || tab?.url || "");
   const parentState = parentResultId ? await readState(parentResultId) : null;
+  const sourceAnchor = parentResultId
+    ? (await consumeSelectionAnchor(parentResultId) || {
+      messageId: "unknown",
+      quote: info.selectionText,
+      startOffset: null,
+      endOffset: null,
+      prefix: "",
+      suffix: ""
+    })
+    : null;
   const resultId = makeId("result");
   const source = {
     text: info.selectionText,
     title: parentState ? `解释分支 · ${parentState.source?.title || "上一级解释"}` : (tab?.title || ""),
     url: parentState?.source?.url || info.pageUrl || tab?.url || ""
   };
-  await startExplanation(resultId, source, parentState);
+  await startExplanation(resultId, source, parentState, sourceAnchor);
   await openResultPopup(resultId, tab?.windowId);
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
     if (message.type === "getState") {
-      sendResponse({ ok: true, state: await readState(message.resultId) });
+      const [state, relations] = await Promise.all([
+        readState(message.resultId),
+        getRecordRelations(message.resultId)
+      ]);
+      sendResponse({ ok: true, state, relations });
+      return;
+    }
+    if (message.type === "getRelations") {
+      sendResponse({ ok: true, relations: await getRecordRelations(message.resultId) });
+      return;
+    }
+    if (message.type === "setSelectionAnchor") {
+      await saveSelectionAnchor(message.resultId, message.anchor);
+      sendResponse({ ok: true });
+      return;
+    }
+    if (message.type === "consumeFocusTarget") {
+      const key = focusKey(message.resultId);
+      const stored = await chrome.storage.session.get(key);
+      await chrome.storage.session.remove(key);
+      sendResponse({ ok: true, anchor: stored[key] || null });
+      return;
+    }
+    if (message.type === "openRecord") {
+      await focusArchivedRecord(message.recordId, message.anchor, _sender.tab?.windowId);
+      sendResponse({ ok: true });
+      return;
+    }
+    if (message.type === "deleteRecord") {
+      const recordId = message.recordId;
+      await deleteArchiveRecord(recordId);
+      stateCache.delete(recordId);
+      await chrome.storage.session.remove([stateKey(recordId), focusKey(recordId), selectionKey(recordId)]);
+      const latest = await chrome.storage.session.get(LATEST_RESULT_KEY);
+      if (latest[LATEST_RESULT_KEY] === recordId) {
+        latestResultId = null;
+        await chrome.storage.session.remove(LATEST_RESULT_KEY);
+      }
+      const windows = await loadPopupWindows();
+      const windowId = windows[recordId];
+      if (Number.isInteger(windowId)) {
+        delete windows[recordId];
+        await persistPopupWindows();
+        chrome.windows.remove(windowId).catch(() => {});
+      }
+      chrome.runtime.sendMessage({ type: "archiveUpdated", recordId }).catch(() => {});
+      sendResponse({ ok: true });
       return;
     }
     if (message.type === "retry") {
       const state = await readState(message.resultId);
       if (!state?.source?.text) throw new Error("没有可重试的内容");
-      sendResponse({ ok: true, state: await startExplanation(message.resultId, state.source, null) });
+      const parentState = state.parentResultId ? await readState(state.parentResultId) : null;
+      sendResponse({
+        ok: true,
+        state: await startExplanation(message.resultId, state.source, parentState, state.sourceAnchor)
+      });
       return;
     }
     if (message.type === "followup") {
@@ -503,3 +658,4 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 createContextMenu().catch(() => {});
+migrateSessionStatesToArchive().catch((error) => console.error("Archive migration failed", error));

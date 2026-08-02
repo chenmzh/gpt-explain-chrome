@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>解释资料库 · GPT 划词解释</title>
+    <link rel="stylesheet" href="library.css">
+  </head>
+  <body>
+    <div class="paper-grain" aria-hidden="true"></div>
+    <header class="library-header">
+      <div>
+        <p class="eyebrow">LEXI · LOCAL LIBRARY</p>
+        <h1>解释资料库</h1>
+        <p class="lede">所有内容仅保存在这台设备的当前 Chrome 用户中。</p>
+      </div>
+      <div class="header-actions">
+        <span id="libraryStats" class="stats">0 条记录 · 0 条连接</span>
+        <button id="exportButton" class="quiet-button" type="button">导出 JSON</button>
+      </div>
+    </header>
+
+    <main class="library-layout">
+      <aside class="records-panel" aria-label="解释记录">
+        <label class="search-field">
+          <span class="sr-only">搜索解释资料库</span>
+          <input id="searchInput" type="search" placeholder="搜索选段、回答或网站…" autocomplete="off">
+          <kbd>⌘ K</kbd>
+        </label>
+        <div class="records-heading">
+          <span>最近记录</span>
+          <span id="resultCount"></span>
+        </div>
+        <div id="recordList" class="record-list"></div>
+        <div id="emptyLibrary" class="empty-library" hidden>
+          <strong>还没有存档</strong>
+          <p>下一次划词解释完成后，会自动出现在这里。</p>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <div class="view-toolbar">
+          <div class="segmented" role="group" aria-label="资料库视图">
+            <button id="detailViewButton" class="active" type="button">记录</button>
+            <button id="graphViewButton" type="button">关系图</button>
+          </div>
+          <p id="viewHint">查看选中文字、完整对话和上下游关系。</p>
+        </div>
+
+        <article id="detailView" class="detail-view">
+          <div id="detailEmpty" class="detail-empty">
+            <span>Aa</span>
+            <h2>选择一条解释记录</h2>
+            <p>它的来源、回答和分支关系会显示在这里。</p>
+          </div>
+          <div id="detailContent" hidden>
+            <div class="detail-head">
+              <div>
+                <p id="detailDate" class="detail-date"></p>
+                <h2 id="detailTitle"></h2>
+              </div>
+              <div class="detail-actions">
+                <button id="reopenButton" class="primary-button" type="button">重新打开</button>
+                <button id="deleteButton" class="danger-button" type="button">删除</button>
+              </div>
+            </div>
+
+            <section class="detail-section source-detail">
+              <div class="section-label">解释对象</div>
+              <blockquote id="detailSource"></blockquote>
+              <a id="detailUrl" target="_blank" rel="noopener noreferrer"></a>
+            </section>
+
+            <section id="relationDetail" class="detail-section" hidden>
+              <div class="section-label">双向索引</div>
+              <div id="relationList" class="relation-list"></div>
+            </section>
+
+            <section class="detail-section">
+              <div class="section-label">完整对话</div>
+              <div id="detailMessages" class="detail-messages"></div>
+            </section>
+          </div>
+        </article>
+
+        <section id="graphView" class="graph-view" hidden>
+          <div class="graph-legend" aria-label="关系图图例">
+            <span><i class="root-dot"></i>根记录</span>
+            <span><i class="branch-dot"></i>分支记录</span>
+            <span><i class="active-dot"></i>当前记录</span>
+          </div>
+          <div id="graphScroller" class="graph-scroller">
+            <svg id="graphCanvas" role="img" aria-label="解释窗口关系图"></svg>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="library.js"></script>
+  </body>
+</html>
