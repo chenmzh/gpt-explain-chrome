@@ -21,10 +21,10 @@
 - 本地 Marked + DOMPurify 安全渲染 Markdown，本地 KaTeX 渲染数学公式
 - 复用常驻 Codex app-server，并逐段流式显示回答
 - 复制、停止和重新解释
-- 选择均衡、快速、严谨策略，或自定义 GPT-5.6 Sol、Terra、Luna 和其他模型
+- 默认使用 Luna / XHigh，可切换 Luna / Max、Sol / Medium、Sol / High，或自定义 GPT-5.6 Sol、Terra、Luna 和其他模型
 - 从当前 ChatGPT 账号动态读取可用模型；旧配置不可用时自动回退到账号默认模型
 - 性能策略只负责填写推荐组合；手动选择模型或 reasoning 后，以界面中的明确选择为准
-- 选择 Low、Medium、High、Extra High reasoning
+- 选择 Low、Medium、High、Extra High、Max、Ultra reasoning
 - 在解释窗口直接切换 English（新安装默认）、简体中文、Deutsch、Français、Italiano 或跟随原文；下一条解释或追问生效
 - 设置页界面可自动跟随浏览器，或手动切换 English、简体中文、Deutsch、Français、Italiano；界面语言与回答语言互不影响
 - 本地检查 Codex 安装及登录状态

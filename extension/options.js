@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, normalizeSettings } from "./default-settings.js";
+import { DEFAULT_SETTINGS, PERFORMANCE_PRESETS, normalizeSettings } from "./default-settings.js";
 import { createTranslator } from "./options-i18n.js";
 
 const params = new URLSearchParams(location.search);
@@ -90,16 +90,13 @@ function updateCustomField() {
 
 function updatePresetFields(applyValues = true) {
   let preset = fields.performanceMode.value;
-  const values = {
-    balanced: ["gpt-5.6-sol", "medium"],
-    fast: ["gpt-5.6-terra", "low"],
-    accurate: ["gpt-5.6-sol", "high"]
-  }[preset];
+  const values = PERFORMANCE_PRESETS[preset];
   if (values && applyValues) {
-    [fields.model.value, fields.reasoning.value] = values;
+    fields.model.value = values.model;
+    fields.reasoning.value = values.reasoning;
   }
   if (values && !applyValues
-    && (fields.model.value !== values[0] || fields.reasoning.value !== values[1])) {
+    && (fields.model.value !== values.model || fields.reasoning.value !== values.reasoning)) {
     preset = "manual";
     fields.performanceMode.value = "manual";
   }

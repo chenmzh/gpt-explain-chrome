@@ -149,8 +149,9 @@ select:focus, input:focus, textarea:focus {
 
 .custom-field { display: block; margin-top: 18px; }
 .preset-field { display: block; margin-bottom: 18px; }
+.model-section[data-preset="luna-xhigh"] .field-grid,
+.model-section[data-preset="luna-max"] .field-grid,
 .model-section[data-preset="balanced"] .field-grid,
-.model-section[data-preset="fast"] .field-grid,
 .model-section[data-preset="accurate"] .field-grid { opacity: .58; }
 code { font-family: "SFMono-Regular", Consolas, monospace; color: #7e3027; }
 
