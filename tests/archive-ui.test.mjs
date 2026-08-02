@@ -33,3 +33,9 @@ test("context-menu initialization is single-flight and consumes Chrome callback 
   assert.match(backgroundJs, /if \(contextMenuInitialization\) return contextMenuInitialization/);
   assert.match(backgroundJs, /const error = chrome\.runtime\.lastError/);
 });
+
+test("new UI releases use a versioned popup registry and URL", () => {
+  assert.match(backgroundJs, /POPUP_UI_VERSION = "2"/);
+  assert.match(backgroundJs, /resultPopupWindows:v\$\{POPUP_UI_VERSION\}/);
+  assert.match(backgroundJs, /popup\.html\?ui=\$\{POPUP_UI_VERSION\}&resultId=/);
+});

@@ -18,7 +18,8 @@ import {
   putArchiveState
 } from "./archive-db.js";
 
-const POPUP_WINDOWS_KEY = "resultPopupWindows";
+const POPUP_UI_VERSION = "2";
+const POPUP_WINDOWS_KEY = `resultPopupWindows:v${POPUP_UI_VERSION}`;
 const LATEST_RESULT_KEY = "latestResultId";
 const STATE_PREFIX = "resultState:";
 const SELECTION_PREFIX = "resultSelection:";
@@ -171,7 +172,9 @@ async function createOrFocusResultPopup(resultId, referenceWindowId) {
     height: POPUP_HEIGHT
   });
   const created = await chrome.windows.create({
-    url: chrome.runtime.getURL(`popup.html?resultId=${encodeURIComponent(resultId)}`),
+    url: chrome.runtime.getURL(
+      `popup.html?ui=${POPUP_UI_VERSION}&resultId=${encodeURIComponent(resultId)}`
+    ),
     type: "popup",
     ...placement,
     focused: true
