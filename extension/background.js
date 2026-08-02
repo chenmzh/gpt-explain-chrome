@@ -33,6 +33,7 @@ let nativePort = null;
 let nativeMessageQueue = Promise.resolve();
 let popupWindows = null;
 let latestResultId = null;
+let contextMenuInitialization = null;
 const popupPromises = new Map();
 const stateCache = new Map();
 const persistenceTimers = new Map();
@@ -55,13 +56,25 @@ function focusKey(resultId) {
   return `${FOCUS_PREFIX}${resultId}`;
 }
 
-async function createContextMenu() {
-  await chrome.contextMenus.removeAll();
-  chrome.contextMenus.create({
-    id: MENU_ID,
-    title: "用 GPT 解释“%s”",
-    contexts: ["selection"]
+function createContextMenu() {
+  if (contextMenuInitialization) return contextMenuInitialization;
+  contextMenuInitialization = (async () => {
+    await chrome.contextMenus.removeAll();
+    await new Promise((resolve, reject) => {
+      chrome.contextMenus.create({
+        id: MENU_ID,
+        title: "用 GPT 解释“%s”",
+        contexts: ["selection"]
+      }, () => {
+        const error = chrome.runtime.lastError;
+        if (error) reject(new Error(error.message));
+        else resolve();
+      });
+    });
+  })().finally(() => {
+    contextMenuInitialization = null;
   });
+  return contextMenuInitialization;
 }
 
 chrome.runtime.onInstalled.addListener(() => createContextMenu().catch(console.error));

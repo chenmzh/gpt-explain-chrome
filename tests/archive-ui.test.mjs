@@ -28,3 +28,8 @@ test("the background can persist anchors and navigate archived records", () => {
   assert.match(backgroundJs, /message\.type === "setSelectionAnchor"/);
   assert.match(backgroundJs, /message\.type === "openRecord"/);
 });
+
+test("context-menu initialization is single-flight and consumes Chrome callback errors", () => {
+  assert.match(backgroundJs, /if \(contextMenuInitialization\) return contextMenuInitialization/);
+  assert.match(backgroundJs, /const error = chrome\.runtime\.lastError/);
+});
