@@ -6,7 +6,7 @@
 
 ![独立解释窗口：Markdown、公式与语言切换](popup-preview-v0.3.1.png)
 
-这是一个面向个人使用的 macOS MVP。Chrome 扩展本身不能直接运行本机程序，因此项目由两部分组成：
+这是一个面向个人使用的 macOS / Windows Chrome 扩展。Chrome 扩展本身不能直接运行本机程序，因此项目由两部分组成：
 
 - `extension/`：Manifest V3 Chrome 扩展，负责右键菜单、独立结果窗口和设置。
 - `native-host/`：Native Messaging Host，负责安全调用已经登录的 Codex CLI。
@@ -35,7 +35,7 @@
 
 ## 系统要求
 
-- macOS
+- macOS，或 64 位 Windows 10 / Windows 11
 - Google Chrome 116 或更高版本
 - Node.js 18 或更高版本
 - Codex CLI 0.144.0 或更高版本（使用 GPT-5.6 时需要；建议直接更新到最新版）
@@ -63,6 +63,8 @@ codex login status
 
 ### 2. 安装 Native Host
 
+#### macOS
+
 在终端进入项目目录，然后运行：
 
 ```bash
@@ -79,9 +81,26 @@ chmod +x native-host/install-macos.sh native-host/uninstall-macos.sh
 
 安装完成后，打开扩展的“详情”→“扩展程序选项”，点击“检测连接”。
 
+#### Windows
+
+在 PowerShell 中进入项目目录，然后运行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-windows.ps1 -ExtensionId 你的扩展ID
+```
+
+也可以使用 Windows 分享包并双击 `Install-Windows.cmd`。安装程序会：
+
+- 自动找到当前 Windows 用户使用的 `node.exe` 和 Codex CLI；同时支持原生 `codex.exe` 与 npm 的 `codex.cmd` 启动器
+- 把 Host 安装到 `%LOCALAPPDATA%\GPTExplainBridge`
+- 在 `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.codex.gpt_explainer` 注册 Native Messaging manifest，不需要管理员权限
+- 只允许你传入的扩展 ID 连接该 Host
+
+安装完成后刷新扩展，打开“扩展程序选项”，点击“检测连接”。
+
 ### 给其他人安装
 
-使用同版本的 `GPT-Explain-Chrome-macOS-v0.3.2.zip` 分享包。它只包含扩展、Native Host、双击安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。接收者解压后双击 `Install.command`，并用自己的扩展 ID 与自己的 `codex login` 完成安装。
+两个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.3.2.zip` 和 `GPT-Explain-Chrome-Windows-v0.3.2.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，并用自己的扩展 ID 与自己的 `codex login` 完成安装。
 
 普通 Chrome 通常会限制从 Chrome Web Store 之外直接安装 CRX，因此本项目的自用分享版采用“解压后加载 `extension` 文件夹 + 本地 Host 安装程序”。如需面向公众的一键安装和自动更新，仍需发布 Chrome Web Store，并另外分发 Native Host 安装器。
 
@@ -149,8 +168,16 @@ codex login status
 
 ## 卸载
 
+macOS：
+
 ```bash
 ./native-host/uninstall-macos.sh
+```
+
+Windows：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\uninstall-windows.ps1
 ```
 
 然后在 `chrome://extensions` 移除扩展。
@@ -170,13 +197,19 @@ npm run check
 bash scripts/build-distribution.sh
 ```
 
+生成名称独立的 Windows 安装目录与 ZIP：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-distribution-windows.ps1
+```
+
 产物写入被 Git 忽略的 `dist/` 目录。GitHub Actions 会在每次 push 和 pull request 时自动运行相同的测试与检查。
 
 `npm test` 检查消息校验、提示词隔离、app-server 参数、流式事件和 Native Messaging 协议；`npm run check` 检查 Manifest、页面依赖、JavaScript 与 shell 脚本语法。
 
 ## 当前限制
 
-- 当前分享版只提供 macOS 安装脚本。
+- Windows 安装程序依赖系统自带的 Windows PowerShell 与 .NET Framework 来生成当前用户的 Native Host 启动器。
 - Native Host 必须在每台电脑上单独安装，不能只靠 Chrome Web Store 自动安装。
 - 独立窗口是普通 Chrome popup 窗口，Chrome 没有为扩展提供强制“永远置顶”的设置。
 - 平铺受屏幕可用面积限制；同时打开的窗口超过所有显示器容量时，Chrome 无法保证仍有完全不重叠的可见位置。

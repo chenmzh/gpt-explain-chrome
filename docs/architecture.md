@@ -18,6 +18,14 @@ codex app-server
 ChatGPT-managed Codex 登录与订阅额度
 ```
 
+## 平台启动与注册
+
+扩展和 `host.cjs` 在 macOS 与 Windows 上共用；只有 Native Messaging Host 的安装与启动入口按平台区分。
+
+- macOS 把 manifest 写入 `~/Library/Application Support/Google/Chrome/NativeMessagingHosts`，并通过 `run-host.sh` 启动 Node Host。
+- Windows 把 manifest 与 Host 安装到 `%LOCALAPPDATA%\GPTExplainBridge`，在当前用户的 `HKCU\Software\Google\Chrome\NativeMessagingHosts` 下注册。安装脚本生成一个小型 `.exe` 启动器，在 Chrome 与 Node Host 之间原样转发标准输入、标准输出和标准错误，因此不需要管理员权限。
+- Windows 上若 Codex 由 npm 提供为 `codex.cmd`，Host 使用可信的本机配置通过 `%COMSPEC%` 启动该 shim；解释文本、模型名和其他网页输入不会进入命令行。
+
 ## 多窗口状态
 
 每次划词创建唯一 `resultId`，窗口地址为 `popup.html?resultId=...`。Service Worker 使用独立的 `resultState:<resultId>` session key 保存来源、消息列表、当前请求、模型设置和父分支 ID；Native 消息通过 `requestId -> resultId` 路由，因此多个窗口可并行流式更新。

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import path from "node:path";
 import test from "node:test";
 
 const require = createRequire(import.meta.url);
 const {
   buildAppServerArgs,
   buildChildEnvironment,
+  buildCodexCommandArgs,
   buildThreadParams,
   buildTurnParams,
   extractAppServerAnswer,
@@ -82,15 +84,38 @@ test("builds a persistent app-server invocation and isolated turn", () => {
   assert.equal(turn.sandboxPolicy.networkAccess, false);
 });
 
-test("adds Node and Codex directories to the Chrome child PATH", () => {
-  const environment = buildChildEnvironment(
-    { codexPath: "/usr/local/bin/codex" },
-    { PATH: "/usr/bin:/bin", KEEP_ME: "yes" }
+test("prefixes the app-server command for a Windows command shim", () => {
+  assert.deepEqual(
+    buildCodexCommandArgs({ codexArgsPrefix: ["/d", "/s", "/c", "C:\\Tools\\codex.cmd"] }),
+    ["/d", "/s", "/c", "C:\\Tools\\codex.cmd", "app-server", "--listen", "stdio://"]
   );
-  const entries = environment.PATH.split(":");
-  assert.ok(entries.includes("/usr/local/bin"));
-  assert.ok(entries.includes("/usr/bin"));
+  assert.deepEqual(buildCodexCommandArgs({}), ["app-server", "--listen", "stdio://"]);
+});
+
+test("adds Node and Codex directories to the Chrome child PATH", () => {
+  const codexPath = path.resolve("usr", "local", "bin", "codex");
+  const existingPath = [path.resolve("usr", "bin"), path.resolve("bin")].join(path.delimiter);
+  const environment = buildChildEnvironment(
+    { codexPath },
+    { PATH: existingPath, KEEP_ME: "yes" }
+  );
+  const entries = environment.PATH.split(path.delimiter);
+  assert.ok(entries.includes(path.dirname(codexPath)));
+  assert.ok(entries.includes(path.resolve("usr", "bin")));
   assert.equal(environment.KEEP_ME, "yes");
+});
+
+test("adds the Windows Codex command shim directory to PATH", () => {
+  const codexCommandPath = path.resolve("test-tools", "codex.cmd");
+  const environment = buildChildEnvironment(
+    {
+      codexPath: path.resolve("system", "cmd.exe"),
+      codexCommandPath
+    },
+    { PATH: path.dirname(process.execPath), KEEP_ME: "yes" }
+  );
+  const entries = environment.PATH.split(path.delimiter);
+  assert.ok(entries.includes(path.dirname(codexCommandPath)));
 });
 
 test("renders selected content as untrusted data without recursively expanding it", () => {

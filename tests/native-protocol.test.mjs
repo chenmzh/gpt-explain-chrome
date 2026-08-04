@@ -61,9 +61,17 @@ function nativeClient(child) {
 test("native protocol reports health and returns an explanation", async (t) => {
   const workDir = mkdtempSync(join(tmpdir(), "gpt-explain-test-"));
   const fakeCodex = resolve(root, "tests/fixtures/fake-codex.cjs");
+  const fakeCodexCommand = resolve(root, "tests/fixtures/fake-codex.cmd");
   chmodSync(fakeCodex, 0o755);
   const configPath = join(workDir, "config.json");
-  writeFileSync(configPath, JSON.stringify({ codexPath: fakeCodex }));
+  const config = process.platform === "win32"
+    ? {
+        codexPath: process.env.ComSpec,
+        codexCommandPath: fakeCodexCommand,
+        codexArgsPrefix: ["/d", "/s", "/c", fakeCodexCommand]
+      }
+    : { codexPath: fakeCodex };
+  writeFileSync(configPath, JSON.stringify(config));
   t.after(() => rmSync(workDir, { recursive: true, force: true }));
 
   const child = spawn(process.execPath, [resolve(root, "native-host/host.cjs")], {

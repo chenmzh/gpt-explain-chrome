@@ -27,6 +27,23 @@ function loadConfig(configPath = process.env.GPT_EXPLAIN_CONFIG_PATH || path.joi
   if (typeof value.codexPath !== "string" || !path.isAbsolute(value.codexPath)) {
     throw new Error("Native Host 配置中的 codexPath 无效，请重新运行安装脚本");
   }
+  if (value.codexArgsPrefix !== undefined) {
+    if (
+      !Array.isArray(value.codexArgsPrefix) ||
+      value.codexArgsPrefix.length > 8 ||
+      value.codexArgsPrefix.some((argument) => (
+        typeof argument !== "string" || argument.length > 4096 || argument.includes("\0")
+      ))
+    ) {
+      throw new Error("Native Host 配置中的 codexArgsPrefix 无效，请重新运行安装脚本");
+    }
+  }
+  if (
+    value.codexCommandPath !== undefined &&
+    (typeof value.codexCommandPath !== "string" || !path.isAbsolute(value.codexCommandPath))
+  ) {
+    throw new Error("Native Host 配置中的 codexCommandPath 无效，请重新运行安装脚本");
+  }
   return value;
 }
 
@@ -154,6 +171,7 @@ function buildChildEnvironment(config, baseEnvironment = process.env) {
   const pathEntries = [
     path.dirname(process.execPath),
     path.dirname(config.codexPath),
+    ...(config.codexCommandPath ? [path.dirname(config.codexCommandPath)] : []),
     ...currentPath.split(path.delimiter)
   ].filter(Boolean);
   return { ...baseEnvironment, PATH: [...new Set(pathEntries)].join(path.delimiter) };
@@ -161,6 +179,10 @@ function buildChildEnvironment(config, baseEnvironment = process.env) {
 
 function buildAppServerArgs() {
   return ["app-server", "--listen", "stdio://"];
+}
+
+function buildCodexCommandArgs(config) {
+  return [...(config.codexArgsPrefix || []), ...buildAppServerArgs()];
 }
 
 function buildThreadParams(settings, workDir) {
@@ -306,7 +328,7 @@ class AppServerClient {
   async _start() {
     this.stopping = false;
     this.workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gpt-explain-server-"));
-    const child = spawn(this.config.codexPath, buildAppServerArgs(), {
+    const child = spawn(this.config.codexPath, buildCodexCommandArgs(this.config), {
       cwd: this.workDir,
       env: buildChildEnvironment(this.config),
       shell: false,
@@ -793,6 +815,7 @@ module.exports = {
   AppServerClient,
   buildAppServerArgs,
   buildChildEnvironment,
+  buildCodexCommandArgs,
   buildThreadParams,
   buildTurnParams,
   extractAppServerAnswer,
