@@ -2,12 +2,27 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  DEFAULT_PROMPT_TEMPLATE,
   DEFAULT_SETTINGS,
+  LEGACY_DEFAULT_PROMPT_TEMPLATE,
   PERFORMANCE_PRESETS,
   effectiveModel,
   effectiveReasoning,
   normalizeSettings
 } from "../extension/default-settings.js";
+
+test("the default prompt teaches step by step and migrates the old template", () => {
+  assert.match(DEFAULT_PROMPT_TEMPLATE, /patient tutor/);
+  assert.match(DEFAULT_PROMPT_TEMPLATE, /why it follows from the previous step/);
+  assert.match(DEFAULT_PROMPT_TEMPLATE, /Do not skip logical links/);
+  assert.match(DEFAULT_PROMPT_TEMPLATE, /likely misunderstanding/);
+  assert.equal(
+    normalizeSettings({ promptTemplate: LEGACY_DEFAULT_PROMPT_TEMPLATE }).promptTemplate,
+    DEFAULT_PROMPT_TEMPLATE
+  );
+  assert.equal(normalizeSettings({ promptTemplate: "My custom teaching prompt" }).promptTemplate,
+    "My custom teaching prompt");
+});
 
 test("new installs use Luna with xhigh reasoning by default", () => {
   assert.equal(DEFAULT_SETTINGS.provider, "codex");
