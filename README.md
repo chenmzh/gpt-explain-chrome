@@ -104,7 +104,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-wi
 
 ### 给其他人安装
 
-两个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.4.0.zip` 和 `GPT-Explain-Chrome-Windows-v0.4.0.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，并使用自己的扩展 ID 与账号或 API Key 完成配置。
+两个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.4.1.zip` 和 `GPT-Explain-Chrome-Windows-v0.4.1.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，并使用自己的扩展 ID 与账号或 API Key 完成配置。
 
 普通 Chrome 通常会限制从 Chrome Web Store 之外直接安装 CRX，因此本项目的自用分享版采用“解压后加载 `extension` 文件夹 + 本地 Host 安装程序”。如需面向公众的一键安装和自动更新，仍需发布 Chrome Web Store，并另外分发 Native Host 安装器。
 

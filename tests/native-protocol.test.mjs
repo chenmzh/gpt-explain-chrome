@@ -62,7 +62,9 @@ test("native protocol reports health and returns an explanation", async (t) => {
   const workDir = mkdtempSync(join(tmpdir(), "gpt-explain-test-"));
   const fakeCodex = resolve(root, "tests/fixtures/fake-codex.cjs");
   const fakeCodexCommand = resolve(root, "tests/fixtures/fake-codex.cmd");
+  const fakeReasonix = resolve(root, "tests/fixtures/fake-reasonix.cjs");
   chmodSync(fakeCodex, 0o755);
+  chmodSync(fakeReasonix, 0o755);
   const configPath = join(workDir, "config.json");
   const config = process.platform === "win32"
     ? {
@@ -71,6 +73,9 @@ test("native protocol reports health and returns an explanation", async (t) => {
         codexArgsPrefix: ["/d", "/s", "/c", fakeCodexCommand]
       }
     : { codexPath: fakeCodex };
+  config.reasonixPath = process.execPath;
+  config.reasonixCommandPath = fakeReasonix;
+  config.reasonixArgsPrefix = [fakeReasonix];
   writeFileSync(configPath, JSON.stringify(config));
   t.after(() => rmSync(workDir, { recursive: true, force: true }));
 
@@ -146,6 +151,37 @@ test("native protocol reports health and returns an explanation", async (t) => {
     .map((message) => message.text)
     .join("");
   assert.match(followupAnswer, /继续回答成功/);
+
+  const reasonixStart = client.messages.length;
+  client.send({
+    type: "explain",
+    requestId: "reasonix-stream-1",
+    conversationId: "reasonix-stream-conversation-1",
+    text: "Explain streaming",
+    pageTitle: "Streaming test",
+    pageUrl: "https://example.com/streaming",
+    settings: {
+      provider: "reasonix",
+      model: "deepseek-v4-flash",
+      reasoning: "high",
+      deepseekReasoning: "high",
+      language: "en",
+      responseLength: "brief",
+      promptTemplate: "Explain: {{text}}"
+    }
+  });
+  await client.waitFor((message) => message.type === "done" && message.requestId === "reasonix-stream-1");
+  const reasonixMessages = client.messages.slice(reasonixStart)
+    .filter((message) => message.requestId === "reasonix-stream-1");
+  const reasonixDeltas = reasonixMessages
+    .filter((message) => message.type === "answerDelta")
+    .map((message) => message.text);
+  assert.deepEqual(reasonixDeltas, ["Reasonix ", "streams ", "now."]);
+  assert.equal(reasonixDeltas.join(""), "Reasonix streams now.");
+  assert.ok(
+    reasonixMessages.findIndex((message) => message.type === "answerDelta")
+      < reasonixMessages.findIndex((message) => message.type === "done")
+  );
 
   for (const suffix of ["a", "b"]) {
     client.send({

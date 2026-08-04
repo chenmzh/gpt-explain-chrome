@@ -15,6 +15,7 @@ const {
   deepSeekRequestBody,
   normalizeModelCatalog,
   parseDeepSeekSseLine,
+  parseReasonixStreamLine,
   renderFollowupPrompt,
   renderPrompt,
   resolveModelSettings,
@@ -122,8 +123,31 @@ test("builds an isolated Reasonix one-shot command without MCP arguments", () =>
   assert.deepEqual(args.slice(0, 2), ["C:\\Tools\\node_modules\\reasonix\\dist\\cli\\index.js", "run"]);
   assert.ok(args.includes("deepseek-flash"));
   assert.ok(args.includes("--permission-mode"));
-  assert.ok(args.includes("--print"));
+  assert.equal(args.includes("--print"), false);
+  assert.equal(args[args.indexOf("--output-format") + 1], "stream-json");
   assert.equal(args.includes("--mcp"), false);
+});
+
+test("parses Reasonix streaming deltas without duplicating final messages", () => {
+  assert.deepEqual(parseReasonixStreamLine('{"kind":"text","text":"Hello "}'), {
+    structured: true,
+    text: "Hello ",
+    finalText: "",
+    error: ""
+  });
+  assert.deepEqual(parseReasonixStreamLine('{"kind":"message","text":"Hello world"}'), {
+    structured: true,
+    text: "",
+    finalText: "Hello world",
+    error: ""
+  });
+  assert.deepEqual(parseReasonixStreamLine('{"type":"result","subtype":"success","is_error":false,"result":"Hello world"}'), {
+    structured: true,
+    text: "",
+    finalText: "Hello world",
+    error: ""
+  });
+  assert.equal(parseReasonixStreamLine("legacy plain output").structured, false);
 });
 
 test("prefixes the app-server command for a Windows command shim", () => {
