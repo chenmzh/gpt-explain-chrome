@@ -1,4 +1,4 @@
-import { languageLabel, modelLabel, reasoningLabel } from "./default-settings.js";
+import { languageLabel, providerModelLabel, reasoningLabel } from "./default-settings.js";
 import { locateSelectionAnchor } from "./archive-model.js";
 
 const params = new URLSearchParams(location.search);
@@ -370,7 +370,7 @@ function render(state, relations = latestRelations) {
 
   const wasNearBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 120;
   const running = state.status === "running";
-  elements.model.textContent = modelLabel(state.options?.model);
+  elements.model.textContent = providerModelLabel(state.options);
   elements.reasoning.textContent = reasoningLabel(state.options?.reasoning);
   elements.language.value = state.options?.language || "en";
   elements.branch.hidden = !state.parentResultId;

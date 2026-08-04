@@ -8,10 +8,13 @@ const {
   buildAppServerArgs,
   buildChildEnvironment,
   buildCodexCommandArgs,
+  buildReasonixCommandArgs,
   buildThreadParams,
   buildTurnParams,
   extractAppServerAnswer,
+  deepSeekRequestBody,
   normalizeModelCatalog,
+  parseDeepSeekSseLine,
   renderFollowupPrompt,
   renderPrompt,
   resolveModelSettings,
@@ -82,6 +85,45 @@ test("builds a persistent app-server invocation and isolated turn", () => {
   assert.equal(turn.approvalPolicy, "never");
   assert.equal(turn.sandboxPolicy.type, "readOnly");
   assert.equal(turn.sandboxPolicy.networkAccess, false);
+});
+
+test("validates provider and DeepSeek reasoning settings", () => {
+  const message = validMessage();
+  message.settings.provider = "deepseek-api";
+  message.settings.deepseekReasoning = "max";
+  const request = validateExplainRequest(message);
+  assert.equal(request.settings.provider, "deepseek-api");
+  assert.equal(request.settings.deepseekReasoning, "max");
+
+  message.settings.provider = "unknown";
+  assert.throws(() => validateExplainRequest(message), /提供方/);
+});
+
+test("builds DeepSeek V4 Flash requests and parses final-answer SSE deltas", () => {
+  assert.deepEqual(deepSeekRequestBody("explain this", { deepseekReasoning: "max" }), {
+    model: "deepseek-v4-flash",
+    messages: [{ role: "user", content: "explain this" }],
+    stream: true,
+    thinking: { type: "enabled" },
+    reasoning_effort: "max"
+  });
+  assert.deepEqual(
+    parseDeepSeekSseLine('data: {"choices":[{"delta":{"reasoning_content":"hidden","content":"answer"}}]}'),
+    { text: "answer", done: false }
+  );
+  assert.deepEqual(parseDeepSeekSseLine("data: [DONE]"), { text: "", done: true });
+});
+
+test("builds an isolated Reasonix one-shot command without MCP arguments", () => {
+  const args = buildReasonixCommandArgs(
+    { reasonixArgsPrefix: ["C:\\Tools\\node_modules\\reasonix\\dist\\cli\\index.js"] },
+    { deepseekReasoning: "high" }
+  );
+  assert.deepEqual(args.slice(0, 2), ["C:\\Tools\\node_modules\\reasonix\\dist\\cli\\index.js", "run"]);
+  assert.ok(args.includes("deepseek-flash"));
+  assert.ok(args.includes("--permission-mode"));
+  assert.ok(args.includes("--print"));
+  assert.equal(args.includes("--mcp"), false);
 });
 
 test("prefixes the app-server command for a Windows command shim", () => {

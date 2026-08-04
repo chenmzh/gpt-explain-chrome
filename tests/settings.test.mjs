@@ -10,6 +10,8 @@ import {
 } from "../extension/default-settings.js";
 
 test("new installs use Luna with xhigh reasoning by default", () => {
+  assert.equal(DEFAULT_SETTINGS.provider, "codex");
+  assert.equal(DEFAULT_SETTINGS.deepseekReasoning, "high");
   assert.equal(DEFAULT_SETTINGS.performanceMode, "luna-xhigh");
   assert.equal(DEFAULT_SETTINGS.model, "gpt-5.6-luna");
   assert.equal(DEFAULT_SETTINGS.reasoning, "xhigh");
@@ -23,6 +25,14 @@ test("new installs use Luna with xhigh reasoning by default", () => {
     model: "gpt-5.6-luna",
     reasoning: "max"
   });
+});
+
+test("accepts both DeepSeek providers and rejects unknown providers", () => {
+  assert.equal(normalizeSettings({ provider: "deepseek-api" }).provider, "deepseek-api");
+  assert.equal(normalizeSettings({ provider: "reasonix" }).provider, "reasonix");
+  assert.equal(normalizeSettings({ provider: "other" }).provider, "codex");
+  assert.equal(normalizeSettings({ deepseekReasoning: "max" }).deepseekReasoning, "max");
+  assert.equal(normalizeSettings({ deepseekReasoning: "ultra" }).deepseekReasoning, "high");
 });
 
 test("the retired Terra preset migrates to the new Luna default", () => {

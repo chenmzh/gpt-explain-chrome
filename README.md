@@ -1,15 +1,15 @@
 # GPT 划词解释
 
-在 Chrome 中选中文字，右键选择“用 GPT 解释”，通过本机 Codex CLI 和你的 ChatGPT 订阅生成解释。无需 OpenAI API Key。
+在 Chrome 中选中文字，右键选择“用 GPT 解释”，可通过本机 Codex CLI、DeepSeek V4 Flash 直连 API，或 Reasonix CLI 生成解释。
 
-> Select text in Chrome and ask GPT to explain it in an independent popup window. It uses the official Codex CLI with each user's own ChatGPT subscription—no OpenAI API key or shared login required.
+> Select text in Chrome and ask GPT to explain it in an independent popup window. Choose Codex with a ChatGPT subscription, the direct DeepSeek V4 Flash API, or DeepSeek through Reasonix CLI.
 
 ![独立解释窗口：Markdown、公式与语言切换](popup-preview-v0.3.1.png)
 
 这是一个面向个人使用的 macOS / Windows Chrome 扩展。Chrome 扩展本身不能直接运行本机程序，因此项目由两部分组成：
 
 - `extension/`：Manifest V3 Chrome 扩展，负责右键菜单、独立结果窗口和设置。
-- `native-host/`：Native Messaging Host，负责安全调用已经登录的 Codex CLI。
+- `native-host/`：Native Messaging Host，负责安全调用已登录的 Codex CLI、DeepSeek API 或隔离运行的 Reasonix CLI。
 
 ## 功能
 
@@ -23,6 +23,8 @@
 - 每个窗口可围绕当前解释继续多轮追问，窗口之间的对话互不污染
 - 本地 Marked + DOMPurify 安全渲染 Markdown，本地 KaTeX 渲染数学公式
 - 复用常驻 Codex app-server，并逐段流式显示回答
+- 支持 DeepSeek V4 Flash 官方 Chat Completions 流式 API，可选择关闭思考、High 或 Max
+- 支持基于 Reasonix CLI 的 DeepSeek V4 Flash 调用；Reasonix 在独立临时配置目录中运行，不加载用户 MCP 配置
 - 复制、停止和重新解释
 - 默认使用 Luna / XHigh，可切换 Luna / Max、Sol / Medium、Sol / High，或自定义 GPT-5.6 Sol、Terra、Luna 和其他模型
 - 从当前 ChatGPT 账号动态读取可用模型；旧配置不可用时自动回退到账号默认模型
@@ -30,7 +32,7 @@
 - 选择 Low、Medium、High、Extra High、Max、Ultra reasoning
 - 在解释窗口直接切换 English（新安装默认）、简体中文、Deutsch、Français、Italiano 或跟随原文；下一条解释或追问生效
 - 设置页界面可自动跟随浏览器，或手动切换 English、简体中文、Deutsch、Français、Italiano；界面语言与回答语言互不影响
-- 本地检查 Codex 安装及登录状态
+- 按当前提供方检查 Codex 登录、DeepSeek API Key 或 Reasonix CLI 状态
 - 最长处理 50,000 个字符
 
 ## 系统要求
@@ -38,10 +40,12 @@
 - macOS，或 64 位 Windows 10 / Windows 11
 - Google Chrome 116 或更高版本
 - Node.js 18 或更高版本
-- Codex CLI 0.144.0 或更高版本（使用 GPT-5.6 时需要；建议直接更新到最新版）
-- 可以使用 Codex 的 ChatGPT 账号
+- 以下三种提供方至少配置一种：
+  - Codex CLI 0.144.0 或更高版本，以及可使用 Codex 的 ChatGPT 账号
+  - DeepSeek API Key（用于 DeepSeek V4 Flash 直连 API）
+  - Reasonix CLI 与 DeepSeek API Key（npm 安装：`npm install -g reasonix`）
 
-先在终端确认 Codex 已登录：
+使用 Codex 时，先在终端确认已登录：
 
 ```bash
 codex --version
@@ -49,7 +53,7 @@ codex login
 codex login status
 ```
 
-如果版本过旧，请按你的安装方式更新 Codex，例如 `npm install -g @openai/codex@latest`。
+如果版本过旧，请按你的安装方式更新 Codex，例如 `npm install -g @openai/codex@latest`。使用 DeepSeek 时，在扩展设置页选择对应提供方并把 API Key 保存到本机 Host；Key 不会写入 Chrome 存储。
 
 ## 安装
 
@@ -74,7 +78,7 @@ chmod +x native-host/install-macos.sh native-host/uninstall-macos.sh
 
 安装程序会：
 
-- 自动找到当前终端使用的 `node` 和 `codex`
+- 自动找到当前终端使用的 `node`，并按需检测 `codex` 与 `reasonix`
 - 把 Host 安装到 `~/Library/Application Support/GPTExplainBridge`
 - 为 Chrome 创建 `com.codex.gpt_explainer` Native Messaging manifest
 - 只允许你传入的扩展 ID 连接该 Host
@@ -91,7 +95,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-wi
 
 也可以使用 Windows 分享包并双击 `Install-Windows.cmd`。安装程序会：
 
-- 自动找到当前 Windows 用户使用的 `node.exe` 和 Codex CLI；同时支持原生 `codex.exe` 与 npm 的 `codex.cmd` 启动器
+- 自动找到当前 Windows 用户使用的 `node.exe`，并按需检测 Codex 与 Reasonix CLI；同时支持原生 `.exe` 与 npm 的 `.cmd` 启动器
 - 把 Host 安装到 `%LOCALAPPDATA%\GPTExplainBridge`
 - 在 `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.codex.gpt_explainer` 注册 Native Messaging manifest，不需要管理员权限
 - 只允许你传入的扩展 ID 连接该 Host
@@ -100,7 +104,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-wi
 
 ### 给其他人安装
 
-两个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.3.2.zip` 和 `GPT-Explain-Chrome-Windows-v0.3.2.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，并用自己的扩展 ID 与自己的 `codex login` 完成安装。
+两个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.4.0.zip` 和 `GPT-Explain-Chrome-Windows-v0.4.0.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，并使用自己的扩展 ID 与账号或 API Key 完成配置。
 
 普通 Chrome 通常会限制从 Chrome Web Store 之外直接安装 CRX，因此本项目的自用分享版采用“解压后加载 `extension` 文件夹 + 本地 Host 安装程序”。如需面向公众的一键安装和自动更新，仍需发布 Chrome Web Store，并另外分发 Native Host 安装器。
 
@@ -113,7 +117,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-wi
 5. 在回答里再次选中文字并右键，会打开继承当前上下文的新分支窗口。
 6. 在窗口底部输入问题，可继续当前窗口的对话；按 Enter 发送，Shift+Enter 换行。
 
-在扩展设置页可以选择界面语言、模型、reasoning 强度、回答语言、回答长度和提示词。
+在扩展设置页可以选择 AI 提供方、DeepSeek 思考模式、Codex 模型与 reasoning 强度、回答语言、回答长度和提示词。
 
 ## 提示词变量
 
@@ -130,14 +134,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-wi
 
 - 扩展不会读取、复制或保存 `~/.codex/auth.json`。
 - ChatGPT 登录由官方 `codex login` 管理。
-- 选中文字通过 Chrome Native Messaging 直接发到本机 Host，再交给 Codex；项目没有自建服务器。
+- DeepSeek API Key 仅保存在本机 Native Host 的 `config.json` 中，不进入 Chrome storage，也不会打进分享包；macOS 文件权限设为 `600`，Windows 文件位于当前用户的 `%LOCALAPPDATA%`。
+- 选中文字通过 Chrome Native Messaging 直接发到本机 Host，再交给所选提供方；项目没有自建服务器。
 - Host 使用 Node `spawn` 的参数数组启动 Codex，`shell` 被明确关闭。
+- Reasonix 使用一次性 `reasonix run`，`shell` 被明确关闭；子进程使用空白临时用户配置目录，因此不会加载用户的 MCP 服务器、`.env` 或项目配置。
 - 模型名、reasoning 值、消息大小和文本长度均会校验。
 - Native Host 常驻一个本地 `codex app-server` 进程；每次解释建立 ephemeral thread，并以 `read-only` sandbox、`never` approval 和禁用网络的 turn 运行。
 - 提示词明确把网页选中文本视为不可信数据，并要求模型不运行工具。
 - 回答由内置 Marked 解析后交给内置 DOMPurify 白名单清理，再由 KaTeX 以 `trust: false` 渲染公式；不会把模型输出直接当作可信 HTML。
 
-请注意：内容仍会发送给 OpenAI/Codex，适用你的 ChatGPT 工作区数据控制和订阅限制。不要解释密码、密钥或其他不应发送给模型的敏感信息。
+请注意：内容会发送给你选择的 OpenAI/Codex 或 DeepSeek 服务，适用相应服务的数据控制、订阅或计费规则。不要解释密码、密钥或其他不应发送给模型的敏感信息。
 
 ## 常见问题
 
@@ -214,3 +220,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-distribu
 - 独立窗口是普通 Chrome popup 窗口，Chrome 没有为扩展提供强制“永远置顶”的设置。
 - 平铺受屏幕可用面积限制；同时打开的窗口超过所有显示器容量时，Chrome 无法保证仍有完全不重叠的可见位置。
 - 模型可用性与额度由 ChatGPT 套餐、工作区设置和当前 Codex 版本决定。
+- Reasonix 模式通过标准输入传递任务，并使用独立的 `REASONIX_HOME` 与显式空工具目录；与其他提供方一样支持最长 50,000 个字符的选中文本。

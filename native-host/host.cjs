@@ -17,6 +17,10 @@ const RPC_TIMEOUT_MS = 30_000;
 const ALLOWED_REASONING = new Set(["", "low", "medium", "high", "xhigh", "max", "ultra"]);
 const ALLOWED_LANGUAGES = new Set(["en", "zh-CN", "de", "fr", "it", "auto"]);
 const ALLOWED_LENGTHS = new Set(["brief", "normal", "detailed"]);
+const ALLOWED_PROVIDERS = new Set(["codex", "deepseek-api", "reasonix"]);
+const ALLOWED_DEEPSEEK_REASONING = new Set(["off", "high", "max"]);
+const DEEPSEEK_MODEL = "deepseek-v4-flash";
+const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/;
 const activeRuns = new Map();
 const conversations = new Map();
@@ -24,7 +28,7 @@ const conversations = new Map();
 function loadConfig(configPath = process.env.GPT_EXPLAIN_CONFIG_PATH || path.join(__dirname, "config.json")) {
   const raw = fs.readFileSync(configPath, "utf8");
   const value = JSON.parse(raw);
-  if (typeof value.codexPath !== "string" || !path.isAbsolute(value.codexPath)) {
+  if (value.codexPath !== undefined && (typeof value.codexPath !== "string" || !path.isAbsolute(value.codexPath))) {
     throw new Error("Native Host 配置中的 codexPath 无效，请重新运行安装脚本");
   }
   if (value.codexArgsPrefix !== undefined) {
@@ -44,7 +48,35 @@ function loadConfig(configPath = process.env.GPT_EXPLAIN_CONFIG_PATH || path.joi
   ) {
     throw new Error("Native Host 配置中的 codexCommandPath 无效，请重新运行安装脚本");
   }
+  if (value.reasonixPath !== undefined && (typeof value.reasonixPath !== "string" || !path.isAbsolute(value.reasonixPath))) {
+    throw new Error("Native Host 配置中的 reasonixPath 无效，请重新运行安装脚本");
+  }
+  if (
+    value.reasonixCommandPath !== undefined &&
+    (typeof value.reasonixCommandPath !== "string" || !path.isAbsolute(value.reasonixCommandPath))
+  ) {
+    throw new Error("Native Host 配置中的 reasonixCommandPath 无效，请重新运行安装脚本");
+  }
+  if (value.reasonixArgsPrefix !== undefined) {
+    if (
+      !Array.isArray(value.reasonixArgsPrefix) ||
+      value.reasonixArgsPrefix.length > 8 ||
+      value.reasonixArgsPrefix.some((argument) => (
+        typeof argument !== "string" || argument.length > 4096 || argument.includes("\0")
+      ))
+    ) {
+      throw new Error("Native Host 配置中的 reasonixArgsPrefix 无效，请重新运行安装脚本");
+    }
+  }
+  Object.defineProperty(value, "_configPath", { value: configPath, enumerable: false });
   return value;
+}
+
+function saveConfig(config) {
+  const configPath = config._configPath;
+  if (!configPath || !path.isAbsolute(configPath)) throw new Error("Native Host 配置路径无效");
+  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  try { fs.chmodSync(configPath, 0o600); } catch {}
 }
 
 function normalizeString(value, maxLength) {
@@ -56,19 +88,23 @@ function safeMessage(error) {
 }
 
 function validateSettings(incoming = {}) {
+  const provider = normalizeString(incoming.provider, 24) || "codex";
+  const deepseekReasoning = normalizeString(incoming.deepseekReasoning, 8) || "high";
   const model = normalizeString(incoming.model, 80).trim();
   const reasoning = normalizeString(incoming.reasoning, 12);
   const language = normalizeString(incoming.language, 12) || "en";
   const responseLength = normalizeString(incoming.responseLength, 12) || "normal";
   const promptTemplate = normalizeString(incoming.promptTemplate, MAX_PROMPT_TEMPLATE_LENGTH);
 
+  if (!ALLOWED_PROVIDERS.has(provider)) throw new Error("AI 提供方无效");
+  if (!ALLOWED_DEEPSEEK_REASONING.has(deepseekReasoning)) throw new Error("DeepSeek 推理模式无效");
   if (model && !MODEL_PATTERN.test(model)) throw new Error("模型名称包含不允许的字符");
   if (!ALLOWED_REASONING.has(reasoning)) throw new Error("reasoning 强度无效");
   if (!ALLOWED_LANGUAGES.has(language)) throw new Error("回答语言无效");
   if (!ALLOWED_LENGTHS.has(responseLength)) throw new Error("回答长度无效");
   if (!promptTemplate) throw new Error("提示词模板为空");
 
-  return { model, reasoning, language, responseLength, promptTemplate };
+  return { provider, deepseekReasoning, model, reasoning, language, responseLength, promptTemplate };
 }
 
 function validateExplainRequest(message) {
@@ -170,8 +206,10 @@ function buildChildEnvironment(config, baseEnvironment = process.env) {
   const currentPath = typeof baseEnvironment.PATH === "string" ? baseEnvironment.PATH : "";
   const pathEntries = [
     path.dirname(process.execPath),
-    path.dirname(config.codexPath),
+    ...(config.codexPath ? [path.dirname(config.codexPath)] : []),
     ...(config.codexCommandPath ? [path.dirname(config.codexCommandPath)] : []),
+    ...(config.reasonixPath ? [path.dirname(config.reasonixPath)] : []),
+    ...(config.reasonixCommandPath ? [path.dirname(config.reasonixCommandPath)] : []),
     ...currentPath.split(path.delimiter)
   ].filter(Boolean);
   return { ...baseEnvironment, PATH: [...new Set(pathEntries)].join(path.delimiter) };
@@ -179,6 +217,25 @@ function buildChildEnvironment(config, baseEnvironment = process.env) {
 
 function buildAppServerArgs() {
   return ["app-server", "--listen", "stdio://"];
+}
+
+function buildReasonixCommandArgs(config, settings) {
+  const effort = settings.deepseekReasoning === "max" ? "max" : "high";
+  return [
+    ...(config.reasonixArgsPrefix || []),
+    "run",
+    "--model",
+    "deepseek-flash",
+    "--effort",
+    effort,
+    "--max-steps",
+    "1",
+    "--permission-mode",
+    "ask",
+    "--print",
+    "--output-format",
+    "text"
+  ];
 }
 
 function buildCodexCommandArgs(config) {
@@ -349,7 +406,7 @@ class AppServerClient {
     child.stdin.on("error", () => {});
 
     await this._request("initialize", {
-      clientInfo: { name: "gpt_explain_chrome", title: "GPT Explain Chrome", version: "0.3.2" }
+      clientInfo: { name: "gpt_explain_chrome", title: "GPT Explain Chrome", version: "0.4.0" }
     });
     this._send({ method: "initialized", params: {} });
     this.ready = true;
@@ -510,6 +567,7 @@ function handleAppServerNotification(message) {
 }
 
 function ensureAppServer(config) {
+  if (!config.codexPath) throw new Error("Codex CLI 未安装；请重新运行安装器，或选择 DeepSeek 提供方");
   if (!appServer) {
     appServer = new AppServerClient(config, {
       onNotification: handleAppServerNotification,
@@ -533,10 +591,16 @@ async function cancelRun(run, report = true) {
   if (run.threadId && run.turnId && appServer) {
     appServer.request("turn/interrupt", { threadId: run.threadId, turnId: run.turnId }).catch(() => {});
   }
+  run.abortController?.abort();
+  if (run.child && !run.child.killed) run.child.kill("SIGTERM");
+  if (run.tempDir) {
+    try { fs.rmSync(run.tempDir, { recursive: true, force: true }); } catch {}
+    run.tempDir = null;
+  }
   finishRun(run, "canceled");
 }
 
-async function startExplanation(rawMessage, config) {
+async function startCodexExplanation(rawMessage, config) {
   const request = validateExplainRequest(rawMessage);
   for (const run of [...activeRuns.values()]) {
     if (run.conversationId === request.conversationId) await cancelRun(run, false);
@@ -612,7 +676,7 @@ async function startExplanation(rawMessage, config) {
   }
 }
 
-async function startFollowup(rawMessage, config) {
+async function startCodexFollowup(rawMessage, config) {
   const request = validateFollowupRequest(rawMessage);
   for (const run of [...activeRuns.values()]) {
     if (run.conversationId === request.conversationId) await cancelRun(run, false);
@@ -695,7 +759,218 @@ async function startFollowup(rawMessage, config) {
   }
 }
 
-async function checkHealth(message, config) {
+function createExternalRun(request) {
+  const run = {
+    requestId: request.requestId,
+    conversationId: request.conversationId,
+    request,
+    answer: "",
+    failure: "",
+    canceled: false,
+    finished: false,
+    abortController: null,
+    child: null,
+    tempDir: null,
+    timeout: null
+  };
+  activeRuns.set(run.requestId, run);
+  run.timeout = setTimeout(() => {
+    run.failure = "请求超过 5 分钟，已自动停止";
+    cancelRun(run, false).catch(() => {});
+  }, REQUEST_TIMEOUT_MS);
+  run.timeout.unref();
+  return run;
+}
+
+function deepSeekRequestBody(prompt, settings) {
+  const enabled = settings.deepseekReasoning !== "off";
+  const body = {
+    model: DEEPSEEK_MODEL,
+    messages: [{ role: "user", content: prompt }],
+    stream: true,
+    thinking: { type: enabled ? "enabled" : "disabled" }
+  };
+  if (enabled) body.reasoning_effort = settings.deepseekReasoning === "max" ? "max" : "high";
+  return body;
+}
+
+function parseDeepSeekSseLine(line) {
+  const value = line.trim();
+  if (!value.startsWith("data:")) return { text: "", done: false };
+  const data = value.slice(5).trim();
+  if (!data) return { text: "", done: false };
+  if (data === "[DONE]") return { text: "", done: true };
+  const event = JSON.parse(data);
+  const text = event?.choices?.[0]?.delta?.content;
+  return { text: typeof text === "string" ? text : "", done: false };
+}
+
+async function runDeepSeekApi(run, prompt, config) {
+  if (!config.deepseekApiKey) throw new Error("DeepSeek API Key 尚未配置，请先在扩展设置中保存 Key");
+  run.abortController = new AbortController();
+  writeNativeMessage({ type: "status", requestId: run.requestId, message: "正在连接 DeepSeek V4 Flash API…" });
+  writeNativeMessage({
+    type: "modelResolved",
+    requestId: run.requestId,
+    model: DEEPSEEK_MODEL,
+    reasoning: run.request.settings.deepseekReasoning,
+    fallback: false,
+    message: ""
+  });
+  const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.deepseekApiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(deepSeekRequestBody(prompt, run.request.settings)),
+    signal: run.abortController.signal
+  });
+  if (!response.ok) {
+    const detail = normalizeString(await response.text(), 1_000);
+    throw new Error(`DeepSeek API 请求失败（HTTP ${response.status}）：${detail}`);
+  }
+  if (!response.body) throw new Error("DeepSeek API 未返回流式响应");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for await (const chunk of response.body) {
+    if (run.canceled || run.finished) return;
+    buffer += decoder.decode(chunk, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      const event = parseDeepSeekSseLine(line);
+      if (event.text) {
+        run.answer += event.text;
+        sendTextInChunks(run.requestId, event.text);
+      }
+    }
+  }
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    const event = parseDeepSeekSseLine(buffer);
+    if (event.text) {
+      run.answer += event.text;
+      sendTextInChunks(run.requestId, event.text);
+    }
+  }
+  if (!run.answer) throw new Error("DeepSeek API 没有返回解释");
+}
+
+function cleanReasonixTail(text) {
+  return text
+    .replace(/\n?— turns:[^\n]*(?:\n|$)[\s\S]*$/u, "")
+    .replace(/\n?transcript:[\s\S]*$/u, "")
+    .trimEnd();
+}
+
+async function runReasonix(run, prompt, config) {
+  if (!config.deepseekApiKey) throw new Error("DeepSeek API Key 尚未配置，请先在扩展设置中保存 Key");
+  if (!config.reasonixPath) throw new Error("Reasonix CLI 未安装；请安装 Reasonix 后重新运行本机安装器");
+  run.tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gpt-explain-reasonix-"));
+  fs.writeFileSync(
+    path.join(run.tempDir, "config.toml"),
+    '[tools]\nenabled = ["__gpt_explain_no_tools__"]\n',
+    { encoding: "utf8", mode: 0o600 }
+  );
+  fs.writeFileSync(
+    path.join(run.tempDir, ".env"),
+    `DEEPSEEK_API_KEY=${config.deepseekApiKey}\n`,
+    { encoding: "utf8", mode: 0o600 }
+  );
+  const environment = buildChildEnvironment(config);
+  environment.DEEPSEEK_API_KEY = config.deepseekApiKey;
+  environment.DEEPSEEK_BASE_URL = DEEPSEEK_BASE_URL;
+  environment.REASONIX_HOME = run.tempDir;
+  environment.REASONIX_STATE_HOME = run.tempDir;
+  delete environment.REASONIX_ACP_SYSTEM_APPEND;
+  writeNativeMessage({ type: "status", requestId: run.requestId, message: "正在通过 Reasonix CLI 连接 DeepSeek V4 Flash…" });
+  writeNativeMessage({
+    type: "modelResolved",
+    requestId: run.requestId,
+    model: DEEPSEEK_MODEL,
+    reasoning: run.request.settings.deepseekReasoning,
+    fallback: false,
+    message: ""
+  });
+
+  try {
+    await new Promise((resolve, reject) => {
+      const child = spawn(config.reasonixPath, buildReasonixCommandArgs(config, run.request.settings), {
+        cwd: run.tempDir,
+        env: environment,
+        shell: false,
+        stdio: ["pipe", "pipe", "pipe"]
+      });
+      run.child = child;
+      child.stdin.on("error", () => {});
+      child.stdin.end(prompt);
+      let pending = "";
+      let stderr = "";
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk) => {
+        pending += chunk;
+        if (pending.length > 2_048) {
+          const safe = pending.slice(0, -1_024);
+          pending = pending.slice(-1_024);
+          run.answer += safe;
+          sendTextInChunks(run.requestId, safe);
+        }
+      });
+      child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-12_000); });
+      child.on("error", reject);
+      child.on("close", (code) => {
+        run.child = null;
+        if (run.canceled) return resolve();
+        const tail = cleanReasonixTail(pending);
+        if (tail) {
+          run.answer += tail;
+          sendTextInChunks(run.requestId, tail);
+        }
+        if (code !== 0) reject(new Error(stderr.trim() || `Reasonix CLI 已退出（状态码 ${code ?? "未知"}）`));
+        else if (!run.answer.trim()) reject(new Error("Reasonix CLI 没有返回解释"));
+        else resolve();
+      });
+    });
+  } finally {
+    if (run.tempDir) {
+      try { fs.rmSync(run.tempDir, { recursive: true, force: true }); } catch {}
+      run.tempDir = null;
+    }
+  }
+}
+
+async function startExternalRequest(rawMessage, config, followup = false) {
+  const request = followup ? validateFollowupRequest(rawMessage) : validateExplainRequest(rawMessage);
+  for (const run of [...activeRuns.values()]) {
+    if (run.conversationId === request.conversationId) await cancelRun(run, false);
+  }
+  const run = createExternalRun(request);
+  const prompt = followup ? renderFollowupPrompt(request, true) : renderPrompt(request);
+  try {
+    if (request.settings.provider === "deepseek-api") await runDeepSeekApi(run, prompt, config);
+    else await runReasonix(run, prompt, config);
+    if (!run.canceled && !run.finished) finishRun(run, "done");
+  } catch (error) {
+    if (!run.canceled && !run.finished) finishRun(run, "error", safeMessage(error));
+  }
+}
+
+async function startExplanation(rawMessage, config) {
+  const request = validateExplainRequest(rawMessage);
+  if (request.settings.provider === "codex") return startCodexExplanation(rawMessage, config);
+  return startExternalRequest(rawMessage, config, false);
+}
+
+async function startFollowup(rawMessage, config) {
+  const request = validateFollowupRequest(rawMessage);
+  if (request.settings.provider === "codex") return startCodexFollowup(rawMessage, config);
+  return startExternalRequest(rawMessage, config, true);
+}
+
+async function checkCodexHealth(message, config) {
   const requestId = normalizeString(message.requestId, 160);
   try {
     const server = ensureAppServer(config);
@@ -729,6 +1004,7 @@ async function checkHealth(message, config) {
     writeNativeMessage({
       type: "healthResult",
       requestId,
+      provider: "codex",
       ok: true,
       detail: `ChatGPT 已登录${suffix} · 默认 ${defaultModel.displayName} · 常驻连接已就绪`,
       planType: account?.planType || "",
@@ -736,12 +1012,108 @@ async function checkHealth(message, config) {
       models
     });
   } catch (error) {
+    const message = error?.code === "EPERM"
+      ? "Codex 位于受保护的 WindowsApps 目录，请重新运行 Windows 安装器以创建可执行的本机副本"
+      : `${safeMessage(error)}。请确认 Codex CLI 为 0.144 或更高版本。`;
     writeNativeMessage({
       type: "healthResult",
       requestId,
+      provider: "codex",
       ok: false,
-      message: `${safeMessage(error)}。请确认 Codex CLI 为 0.144 或更高版本。`
+      message
     });
+  }
+}
+
+async function checkDeepSeekHealth(message, config, provider) {
+  const requestId = normalizeString(message.requestId, 160);
+  try {
+    if (!config.deepseekApiKey) throw new Error("DeepSeek API Key 尚未配置，请先在扩展设置中保存 Key");
+    writeNativeMessage({
+      type: "healthProgress",
+      requestId,
+      provider,
+      message: provider === "reasonix" ? "正在检查 Reasonix CLI…" : "正在检查 DeepSeek API…"
+    });
+    if (provider === "reasonix") {
+      if (!config.reasonixPath) throw new Error("Reasonix CLI 未安装；请安装后重新运行本机安装器");
+      await new Promise((resolve, reject) => {
+        const child = spawn(config.reasonixPath, [...(config.reasonixArgsPrefix || []), "--version"], {
+          env: buildChildEnvironment(config),
+          shell: false,
+          stdio: ["ignore", "pipe", "pipe"]
+        });
+        let stderr = "";
+        child.stderr.setEncoding("utf8");
+        child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-2_000); });
+        child.on("error", reject);
+        child.on("close", (code) => code === 0
+          ? resolve()
+          : reject(new Error(stderr.trim() || `Reasonix CLI 检查失败（状态码 ${code ?? "未知"}）`)));
+      });
+    } else {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15_000);
+      try {
+        const response = await fetch(`${DEEPSEEK_BASE_URL}/models`, {
+          headers: { Authorization: `Bearer ${config.deepseekApiKey}` },
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error(`DeepSeek API 验证失败（HTTP ${response.status}）`);
+        const result = await response.json();
+        if (!result?.data?.some((model) => model?.id === DEEPSEEK_MODEL)) {
+          throw new Error(`DeepSeek API 未返回 ${DEEPSEEK_MODEL}`);
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    writeNativeMessage({
+      type: "healthResult",
+      requestId,
+      provider,
+      ok: true,
+      defaultModel: DEEPSEEK_MODEL,
+      deepseekKeyConfigured: true,
+      models: [{ id: DEEPSEEK_MODEL, displayName: "DeepSeek V4 Flash", isDefault: true }]
+    });
+  } catch (error) {
+    writeNativeMessage({
+      type: "healthResult",
+      requestId,
+      provider,
+      ok: false,
+      deepseekKeyConfigured: Boolean(config.deepseekApiKey),
+      message: safeMessage(error)
+    });
+  }
+}
+
+async function checkHealth(message, config) {
+  const provider = ALLOWED_PROVIDERS.has(message?.provider) ? message.provider : "codex";
+  if (provider === "codex") return checkCodexHealth(message, config);
+  return checkDeepSeekHealth(message, config, provider);
+}
+
+function configureDeepSeek(message, config) {
+  const requestId = normalizeString(message.requestId, 160);
+  try {
+    if (message.clear) {
+      delete config.deepseekApiKey;
+    } else {
+      const apiKey = normalizeString(message.apiKey, 256).trim();
+      if (!/^[A-Za-z0-9._-]{16,256}$/.test(apiKey)) throw new Error("DeepSeek API Key 格式无效");
+      config.deepseekApiKey = apiKey;
+    }
+    saveConfig(config);
+    writeNativeMessage({
+      type: "configureResult",
+      requestId,
+      ok: true,
+      configured: Boolean(config.deepseekApiKey)
+    });
+  } catch (error) {
+    writeNativeMessage({ type: "configureResult", requestId, ok: false, message: safeMessage(error) });
   }
 }
 
@@ -765,6 +1137,10 @@ function handleMessage(message, config) {
   }
   if (message?.type === "health") {
     checkHealth(message, config).catch(() => {});
+    return;
+  }
+  if (message?.type === "configureDeepSeek") {
+    configureDeepSeek(message, config);
     return;
   }
   throw new Error("不支持的 Native Host 消息");
@@ -816,10 +1192,13 @@ module.exports = {
   buildAppServerArgs,
   buildChildEnvironment,
   buildCodexCommandArgs,
+  buildReasonixCommandArgs,
   buildThreadParams,
   buildTurnParams,
   extractAppServerAnswer,
   normalizeModelCatalog,
+  deepSeekRequestBody,
+  parseDeepSeekSseLine,
   renderPrompt,
   renderFollowupPrompt,
   resolveModelSettings,

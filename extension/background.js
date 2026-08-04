@@ -338,7 +338,7 @@ function updateCurrentAssistant(state, updater) {
 }
 
 async function handleNativeMessage(message) {
-  if (message.type === "healthResult" || message.type === "healthProgress") {
+  if (["healthResult", "healthProgress", "configureResult"].includes(message.type)) {
     chrome.runtime.sendMessage(message).catch(() => {});
     return;
   }
@@ -447,6 +447,7 @@ async function startExplanation(resultId, source, parentState = null, sourceAnch
     },
     messages: [{ id: answerId, role: "assistant", text: "", status: "running", error: "" }],
     options: {
+      provider: settings.provider,
       model: effectiveModel(settings),
       reasoning: effectiveReasoning(settings),
       language: settings.language,
@@ -663,8 +664,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return;
     }
     if (message.type === "checkHost") {
+      const settings = await loadSettings();
       const requestId = makeId("health");
-      connectNative().postMessage({ type: "health", requestId });
+      connectNative().postMessage({ type: "health", requestId, provider: settings.provider });
+      sendResponse({ ok: true, requestId });
+      return;
+    }
+    if (message.type === "configureDeepSeek") {
+      const requestId = makeId("configure");
+      connectNative().postMessage({
+        type: "configureDeepSeek",
+        requestId,
+        apiKey: String(message.apiKey || ""),
+        clear: Boolean(message.clear)
+      });
       sendResponse({ ok: true, requestId });
       return;
     }

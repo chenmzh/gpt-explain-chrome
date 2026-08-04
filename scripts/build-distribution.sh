@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUTPUT_ROOT="$PROJECT_ROOT/dist"
-VERSION="$(node -p "require('$PROJECT_ROOT/package.json').version")"
+VERSION="$(cd "$PROJECT_ROOT" && node -p "require('./package.json').version")"
 PACKAGE_NAME="GPT-Explain-Chrome-macOS-v$VERSION"
 TARGET="$OUTPUT_ROOT/$PACKAGE_NAME"
 ARCHIVE="$OUTPUT_ROOT/$PACKAGE_NAME.zip"

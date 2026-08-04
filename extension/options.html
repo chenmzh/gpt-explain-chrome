@@ -27,6 +27,43 @@
       </header>
 
       <form id="settingsForm">
+        <section class="section provider-section">
+          <div class="section-index">00</div>
+          <div class="section-body">
+            <h2 data-i18n="providerTitle">AI provider</h2>
+            <p class="section-note" data-i18n="providerNote">Choose Codex with your ChatGPT login, the direct DeepSeek API, or DeepSeek through Reasonix CLI.</p>
+            <label>
+              <span data-i18n="providerLabel">Provider</span>
+              <select id="provider" name="provider">
+                <option value="codex" data-i18n="providerCodex">Codex · ChatGPT subscription</option>
+                <option value="deepseek-api" data-i18n="providerDeepSeekApi">DeepSeek V4 Flash · Direct API</option>
+                <option value="reasonix" data-i18n="providerReasonix">DeepSeek V4 Flash · Reasonix CLI</option>
+              </select>
+            </label>
+            <div id="deepseekFields" class="provider-fields" hidden>
+              <div class="field-grid">
+                <label>
+                  <span data-i18n="deepseekMode">DeepSeek reasoning</span>
+                  <select id="deepseekReasoning" name="deepseekReasoning">
+                    <option value="off" data-i18n="deepseekInstant">Instant · thinking off</option>
+                    <option value="high" data-i18n="deepseekHigh">Thinking · high</option>
+                    <option value="max" data-i18n="deepseekMax">Thinking · max</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="deepseekApiKey">DeepSeek API Key</span>
+                  <input id="deepseekApiKey" type="password" autocomplete="off" placeholder="sk-…" maxlength="256">
+                </label>
+              </div>
+              <div class="credential-actions">
+                <span id="deepseekKeyStatus" class="credential-status" data-i18n="deepseekKeyUnknown">Key status not checked</span>
+                <button id="saveDeepSeekKey" class="secondary-button" type="button" data-i18n="saveDeepSeekKey">Save key locally</button>
+                <button id="clearDeepSeekKey" class="link-button" type="button" data-i18n="clearDeepSeekKey">Clear key</button>
+              </div>
+              <p class="section-note credential-note" data-i18n="deepseekKeyNote">The key is stored only in the Native Host configuration on this computer, never in Chrome storage.</p>
+            </div>
+          </div>
+        </section>
         <section class="section model-section">
           <div class="section-index">01</div>
           <div class="section-body">
