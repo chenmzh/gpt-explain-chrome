@@ -1012,11 +1012,15 @@ async function checkCodexHealth(message, config) {
       models
     });
   } catch (error) {
+    const message = error?.code === "EPERM"
+      ? "Codex 位于受保护的 WindowsApps 目录，请重新运行 Windows 安装器以创建可执行的本机副本"
+      : `${safeMessage(error)}。请确认 Codex CLI 为 0.144 或更高版本。`;
     writeNativeMessage({
       type: "healthResult",
       requestId,
+      provider: "codex",
       ok: false,
-      message: `${safeMessage(error)}。请确认 Codex CLI 为 0.144 或更高版本。`
+      message
     });
   }
 }

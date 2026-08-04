@@ -99,6 +99,14 @@ function Write-Utf8WithoutBom {
   [System.IO.File]::WriteAllText($Path, $Content, $encoding)
 }
 
+function Test-IsWindowsAppsPath {
+  param([string]$Path)
+  if (-not $Path -or -not $env:ProgramFiles) { return $false }
+  $windowsAppsRoot = [System.IO.Path]::GetFullPath((Join-Path $env:ProgramFiles "WindowsApps")).TrimEnd("\") + "\"
+  $resolved = [System.IO.Path]::GetFullPath($Path)
+  return $resolved.StartsWith($windowsAppsRoot, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 if (-not $InstallRoot) {
   if (-not $env:LOCALAPPDATA) {
     throw "Cannot determine LOCALAPPDATA / 无法确定 LOCALAPPDATA。"
@@ -156,6 +164,16 @@ $InstalledHost = Join-Path $InstallRoot "host.cjs"
 $ConfigPath = Join-Path $InstallRoot "config.json"
 $LauncherPath = Join-Path $InstallRoot "GPTExplainNativeHost.exe"
 $ManifestPath = Join-Path $InstallRoot "$HostName.json"
+
+# Windows Store apps inherit WindowsApps ACLs that allow an interactive shell to
+# execute Codex but can reject Node child_process with EPERM. Keep a per-user
+# executable copy beside the Native Host so Chrome can launch it reliably.
+if ($CodexLaunch -and (Test-IsWindowsAppsPath $CodexLaunch.Executable)) {
+  $StagedCodexPath = Join-Path $InstallRoot "codex.exe"
+  Copy-Item -LiteralPath $CodexLaunch.Command -Destination $StagedCodexPath -Force
+  $CodexLaunch = Resolve-CommandLaunch $StagedCodexPath
+  Write-Host "Staged the Windows Store Codex CLI at $StagedCodexPath"
+}
 
 Copy-Item -LiteralPath $SourceHost -Destination $InstalledHost -Force
 
@@ -252,10 +270,26 @@ internal static class GPTExplainNativeHostLauncher
 }
 "@
 
+$LauncherBuildPath = Join-Path $InstallRoot "GPTExplainNativeHost.new.exe"
+if (Test-Path -LiteralPath $LauncherBuildPath) {
+  Remove-Item -LiteralPath $LauncherBuildPath -Force
+}
+Add-Type -TypeDefinition $LauncherSource -Language CSharp -OutputAssembly $LauncherBuildPath -OutputType ConsoleApplication
+
 if (Test-Path -LiteralPath $LauncherPath) {
+  $ResolvedLauncherPath = [System.IO.Path]::GetFullPath($LauncherPath)
+  $RunningLaunchers = Get-CimInstance Win32_Process -Filter "Name = 'GPTExplainNativeHost.exe'" -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.ExecutablePath -and
+      [System.IO.Path]::GetFullPath($_.ExecutablePath).Equals($ResolvedLauncherPath, [System.StringComparison]::OrdinalIgnoreCase)
+    }
+  foreach ($RunningLauncher in $RunningLaunchers) {
+    Stop-Process -Id $RunningLauncher.ProcessId -Force -ErrorAction SilentlyContinue
+    Wait-Process -Id $RunningLauncher.ProcessId -Timeout 5 -ErrorAction SilentlyContinue
+  }
   Remove-Item -LiteralPath $LauncherPath -Force
 }
-Add-Type -TypeDefinition $LauncherSource -Language CSharp -OutputAssembly $LauncherPath -OutputType ConsoleApplication
+Move-Item -LiteralPath $LauncherBuildPath -Destination $LauncherPath
 
 $Manifest = [ordered]@{
   name = $HostName
@@ -275,7 +309,7 @@ Write-Host ""
 Write-Host "Native Host installed / Native Host 已安装。"
 Write-Host "Host:     $LauncherPath"
 Write-Host "Manifest: $ManifestPath"
-if ($CodexCommand) { Write-Host "Codex:    $CodexCommand" } else { Write-Host "Codex:    not detected (optional)" }
+if ($CodexLaunch) { Write-Host "Codex:    $($CodexLaunch.Executable)" } else { Write-Host "Codex:    not detected (optional)" }
 if ($ReasonixCommand) { Write-Host "Reasonix: $ReasonixCommand" } else { Write-Host "Reasonix: not detected (optional)" }
 if (-not $SkipRegistry) { Write-Host "Registry: $RegistryPath" }
 Write-Host "Reload the extension, open its Options page, and click Check connection."

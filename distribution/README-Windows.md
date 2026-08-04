@@ -41,6 +41,7 @@ If Windows marks the downloaded ZIP as blocked, right-click the ZIP before extra
 - The Native Messaging Host is installed under `%LOCALAPPDATA%\GPTExplainBridge`.
 - Chrome discovers it through `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.codex.gpt_explainer`.
 - A small per-user launcher forwards Chrome's standard input/output to the shared Node.js host. No administrator permission is required.
+- When Codex comes from the Microsoft Store, the installer creates a per-user executable copy because Chrome-launched Node processes cannot execute directly from the protected `WindowsApps` directory.
 - The macOS package uses `.command`/shell installers and the macOS NativeMessagingHosts directory instead; do not mix files from the two packages.
 
 ## Uninstall / 卸载
