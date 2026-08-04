@@ -406,7 +406,7 @@ class AppServerClient {
     child.stdin.on("error", () => {});
 
     await this._request("initialize", {
-      clientInfo: { name: "gpt_explain_chrome", title: "GPT Explain Chrome", version: "0.4.1" }
+      clientInfo: { name: "gpt_explain_chrome", title: "GPT Explain Chrome", version: "0.4.3" }
     });
     this._send({ method: "initialized", params: {} });
     this.ready = true;

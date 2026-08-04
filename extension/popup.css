@@ -20,10 +20,7 @@ html, body { min-height: 100%; }
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 105% -5%, rgba(198, 64, 46, 0.16), transparent 34%),
-    linear-gradient(90deg, transparent 28px, rgba(198, 64, 46, 0.18) 29px, transparent 30px),
-    var(--paper);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--body);
   font-size: 14px;
@@ -197,7 +194,6 @@ h1 {
 
 .status-badge.running i {
   background: var(--accent);
-  animation: pulse 1.2s ease-in-out infinite;
 }
 
 .status-badge.done i { background: var(--success); }
@@ -366,12 +362,8 @@ blockquote {
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
-  transform-origin: center;
-  animation: dot-pulse 1.4s ease-in-out infinite;
 }
 
-.thinking span:nth-child(2) { animation-delay: 160ms; }
-.thinking span:nth-child(3) { animation-delay: 320ms; }
 .thinking em { margin-left: 5px; font-size: 12px; font-style: normal; }
 
 .rich-text {
@@ -551,16 +543,6 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 @keyframes reveal {
   from { opacity: 0.35; }
   to { opacity: 1; }
-}
-
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(198,64,46,.35); }
-  50% { box-shadow: 0 0 0 5px rgba(198,64,46,0); }
-}
-
-@keyframes dot-pulse {
-  0%, 100% { transform: scale(.78); opacity: .35; }
-  50% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes anchor-flash {
