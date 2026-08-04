@@ -335,6 +335,7 @@ function renderMessages(state) {
   }
 
   let assistantNumber = 0;
+  let messageIndex = 0;
   for (const message of messages) {
     let card = elements.messages.querySelector(`[data-message-id="${CSS.escape(message.id)}"]`);
     if (!card) card = createMessageCard(message);
@@ -356,7 +357,9 @@ function renderMessages(state) {
     error.hidden = !message.error;
     error.querySelector("p").textContent = message.error || "";
     renderRichText(card.querySelector(".rich-text"), message.text, message.id, !running);
-    elements.messages.append(card);
+    const cardAtIndex = elements.messages.children[messageIndex];
+    if (cardAtIndex !== card) elements.messages.insertBefore(card, cardAtIndex || null);
+    messageIndex += 1;
   }
 }
 
