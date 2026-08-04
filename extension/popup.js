@@ -1,5 +1,6 @@
 import { languageLabel, providerModelLabel, reasoningLabel } from "./default-settings.js";
 import { locateSelectionAnchor } from "./archive-model.js";
+import { splitAmbiguousStrongText } from "./markdown-normalize.js";
 
 const params = new URLSearchParams(location.search);
 const isPreview = params.has("preview");
@@ -228,6 +229,31 @@ function restoreMath(container, segments) {
   }
 }
 
+function repairAmbiguousStrong(container) {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const repairs = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (node.parentElement?.closest("code, pre")) continue;
+    const parts = splitAmbiguousStrongText(node.nodeValue);
+    if (parts) repairs.push({ node, parts });
+  }
+
+  for (const { node, parts } of repairs) {
+    const fragment = document.createDocumentFragment();
+    for (const part of parts) {
+      if (Object.hasOwn(part, "strong")) {
+        const strong = document.createElement("strong");
+        strong.textContent = part.strong;
+        fragment.append(strong);
+      } else {
+        fragment.append(part.text);
+      }
+    }
+    node.replaceWith(fragment);
+  }
+}
+
 function messageText(messageId) {
   return latestState?.messages?.find((message) => message.id === messageId)?.text || "";
 }
@@ -250,6 +276,7 @@ function applyRichRendering(container, text, messageId) {
     ],
     ALLOWED_ATTR: ["href", "title", "class"]
   });
+  repairAmbiguousStrong(container);
   restoreMath(container, protectedMath.segments);
   for (const link of container.querySelectorAll("a")) {
     link.target = "_blank";
