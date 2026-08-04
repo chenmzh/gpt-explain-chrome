@@ -149,6 +149,13 @@ select:focus, input:focus, textarea:focus {
 
 .custom-field { display: block; margin-top: 18px; }
 .preset-field { display: block; margin-bottom: 18px; }
+.provider-fields { margin-top: 20px; }
+.credential-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.credential-status { color: var(--muted); font-size: 12px; margin-right: auto; }
+.credential-status.ok { color: var(--green); }
+.credential-status.error { color: var(--accent); }
+.credential-note { margin: 12px 0 0; }
+.link-button { padding: 8px 4px; background: transparent; color: var(--accent); }
 .model-section[data-preset="luna-xhigh"] .field-grid,
 .model-section[data-preset="luna-max"] .field-grid,
 .model-section[data-preset="balanced"] .field-grid,

@@ -7,6 +7,9 @@ const previewLanguage = params.get("lang");
 const form = document.querySelector("#settingsForm");
 const fields = {
   uiLanguage: document.querySelector("#uiLanguage"),
+  provider: document.querySelector("#provider"),
+  deepseekReasoning: document.querySelector("#deepseekReasoning"),
+  deepseekApiKey: document.querySelector("#deepseekApiKey"),
   performanceMode: document.querySelector("#performanceMode"),
   model: document.querySelector("#model"),
   customModel: document.querySelector("#customModel"),
@@ -17,6 +20,8 @@ const fields = {
   promptTemplate: document.querySelector("#promptTemplate")
 };
 const modelSection = document.querySelector(".model-section");
+const deepseekFields = document.querySelector("#deepseekFields");
+const deepseekKeyStatus = document.querySelector("#deepseekKeyStatus");
 const connection = {
   dot: document.querySelector("#connectionDot"),
   title: document.querySelector("#connectionTitle"),
@@ -88,6 +93,21 @@ function updateCustomField() {
   fields.customModel.required = fields.model.value === "custom";
 }
 
+function updateProviderFields() {
+  const isCodex = fields.provider.value === "codex";
+  const isReasonix = fields.provider.value === "reasonix";
+  modelSection.hidden = !isCodex;
+  deepseekFields.hidden = isCodex;
+  const instantOption = [...fields.deepseekReasoning.options].find((option) => option.value === "off");
+  if (instantOption) instantOption.disabled = isReasonix;
+  if (isReasonix && fields.deepseekReasoning.value === "off") fields.deepseekReasoning.value = "high";
+}
+
+function setKeyStatus(key, kind = "") {
+  deepseekKeyStatus.textContent = t(key);
+  deepseekKeyStatus.className = `credential-status ${kind}`;
+}
+
 function updatePresetFields(applyValues = true) {
   let preset = fields.performanceMode.value;
   const values = PERFORMANCE_PRESETS[preset];
@@ -107,18 +127,21 @@ function updatePresetFields(applyValues = true) {
 function fillForm(settings) {
   const value = normalizeSettings(settings);
   for (const key of [
-    "uiLanguage", "performanceMode", "model", "customModel", "reasoning",
+    "uiLanguage", "provider", "deepseekReasoning", "performanceMode", "model", "customModel", "reasoning",
     "language", "responseLength", "promptTemplate"
   ]) {
     fields[key].value = value[key];
   }
   applyLanguage(value.uiLanguage);
+  updateProviderFields();
   updatePresetFields(false);
 }
 
 function readForm() {
   return normalizeSettings({
     uiLanguage: fields.uiLanguage.value,
+    provider: fields.provider.value,
+    deepseekReasoning: fields.deepseekReasoning.value,
     performanceMode: fields.performanceMode.value,
     model: fields.model.value,
     customModel: fields.customModel.value,
@@ -137,6 +160,7 @@ function showToast(messageKey = "settingsSaved") {
 }
 
 fields.uiLanguage.addEventListener("change", () => applyLanguage(fields.uiLanguage.value));
+fields.provider.addEventListener("change", updateProviderFields);
 fields.performanceMode.addEventListener("change", () => updatePresetFields(true));
 fields.model.addEventListener("change", () => {
   fields.performanceMode.value = "manual";
@@ -165,6 +189,24 @@ document.querySelector("#checkConnection").addEventListener("click", async () =>
   if (!response?.ok) setConnection("error", "connectionFailed", "hostUnavailable");
 });
 
+document.querySelector("#saveDeepSeekKey").addEventListener("click", async () => {
+  const apiKey = fields.deepseekApiKey.value.trim();
+  if (!apiKey) {
+    setKeyStatus("deepseekKeyRequired", "error");
+    fields.deepseekApiKey.focus();
+    return;
+  }
+  setKeyStatus("deepseekKeySaving");
+  const response = await chrome.runtime.sendMessage({ type: "configureDeepSeek", apiKey });
+  if (!response?.ok) setKeyStatus("deepseekKeySaveFailed", "error");
+});
+
+document.querySelector("#clearDeepSeekKey").addEventListener("click", async () => {
+  setKeyStatus("deepseekKeySaving");
+  const response = await chrome.runtime.sendMessage({ type: "configureDeepSeek", clear: true });
+  if (!response?.ok) setKeyStatus("deepseekKeySaveFailed", "error");
+});
+
 document.querySelector("#copyId").addEventListener("click", async () => {
   await navigator.clipboard.writeText(chrome.runtime.id);
   showToast("copied");
@@ -173,26 +215,44 @@ document.querySelector("#copyId").addEventListener("click", async () => {
 if (!isPreview) {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === "healthProgress") {
-      setConnection("checking", "checking", "connectingCodex");
+      setConnection("checking", "checking", message.provider && message.provider !== "codex"
+        ? "connectingDeepSeek"
+        : "connectingCodex");
       return;
     }
     if (message.type !== "healthResult") return;
     if (message.ok) {
-      updateModelOptions(message.models);
+      if (message.provider === "codex") updateModelOptions(message.models);
       const defaultModel = message.defaultModel
         || message.models?.find((model) => model.isDefault)?.displayName
         || message.models?.find((model) => model.isDefault)?.id
         || "Codex";
-      setConnection("ok", "connectionOk", "connectionReady", {
+      const detailKey = message.provider === "codex" ? "connectionReady" : "deepseekConnectionReady";
+      setConnection("ok", "connectionOk", detailKey, {
         plan: message.planType ? ` · ${message.planType}` : "",
-        model: defaultModel
+        model: defaultModel,
+        provider: message.provider === "reasonix" ? "Reasonix CLI" : "DeepSeek API"
       });
+      if (message.deepseekKeyConfigured) setKeyStatus("deepseekKeyConfigured", "ok");
     } else if (message.code === "NOT_LOGGED_IN") {
       setConnection("error", "connectionFailed", "loginRequired");
     } else if (message.code === "WRONG_ACCOUNT_TYPE") {
       setConnection("error", "connectionFailed", "wrongAccountType", { accountType: message.accountType || "API" });
     } else {
       setConnection("error", "connectionFailed", "reinstallHost");
+    }
+  });
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type !== "configureResult") return;
+    if (message.ok) {
+      fields.deepseekApiKey.value = "";
+      setKeyStatus(message.configured ? "deepseekKeyConfigured" : "deepseekKeyCleared", "ok");
+    } else if (message.provider && message.provider !== "codex") {
+      setConnection("error", "connectionFailed", "deepseekHealthFailed", { message: message.message || "" });
+      setKeyStatus(message.deepseekKeyConfigured ? "deepseekKeyConfigured" : "deepseekKeyRequired",
+        message.deepseekKeyConfigured ? "ok" : "error");
+    } else {
+      setKeyStatus("deepseekKeySaveFailed", "error");
     }
   });
 }

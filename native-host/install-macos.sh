@@ -12,13 +12,10 @@ fi
 
 NODE_BIN="$(command -v node || true)"
 CODEX_BIN="$(command -v codex || true)"
+REASONIX_BIN="$(command -v reasonix || true)"
 if [[ -z "$NODE_BIN" ]]; then
   echo "未找到 Node.js。请先安装 Node.js 18 或更高版本。" >&2
   exit 3
-fi
-if [[ -z "$CODEX_BIN" ]]; then
-  echo "未找到 Codex CLI。请先安装 Codex，并运行 codex login。" >&2
-  exit 4
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,8 +29,16 @@ cp "$SCRIPT_DIR/host.cjs" "$SUPPORT_DIR/host.cjs"
 
 "$NODE_BIN" -e '
   const fs = require("node:fs");
-  fs.writeFileSync(process.argv[1], JSON.stringify({ codexPath: process.argv[2] }, null, 2) + "\n");
-' "$SUPPORT_DIR/config.json" "$CODEX_BIN"
+  const configPath = process.argv[1];
+  let previous = {};
+  try { previous = JSON.parse(fs.readFileSync(configPath, "utf8")); } catch {}
+  const config = {};
+  if (process.argv[2]) config.codexPath = process.argv[2];
+  if (process.argv[3]) config.reasonixPath = process.argv[3];
+  if (previous.deepseekApiKey) config.deepseekApiKey = previous.deepseekApiKey;
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
+' "$SUPPORT_DIR/config.json" "$CODEX_BIN" "$REASONIX_BIN"
+chmod 600 "$SUPPORT_DIR/config.json"
 
 "$NODE_BIN" -e '
   const fs = require("node:fs");
@@ -56,6 +61,7 @@ chmod 700 "$SUPPORT_DIR/run-host.sh"
 ' "$MANIFEST_PATH" "$HOST_NAME" "$SUPPORT_DIR/run-host.sh" "$EXTENSION_ID"
 
 echo "Native Host 安装完成。"
-echo "Codex: $CODEX_BIN"
+echo "Codex: ${CODEX_BIN:-未检测到（可选）}"
+echo "Reasonix: ${REASONIX_BIN:-未检测到（可选）}"
 echo "Manifest: $MANIFEST_PATH"
 echo "请回到扩展设置页点击「检测连接」。"

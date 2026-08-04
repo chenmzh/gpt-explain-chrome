@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,6 +80,18 @@ test("native protocol reports health and returns an explanation", async (t) => {
   });
   t.after(() => child.kill("SIGTERM"));
   const client = nativeClient(child);
+
+  client.send({
+    type: "configureDeepSeek",
+    requestId: "configure-1",
+    apiKey: "sk-test-key-1234567890"
+  });
+  const configured = await client.waitFor((message) => (
+    message.type === "configureResult" && message.requestId === "configure-1"
+  ));
+  assert.equal(configured.ok, true);
+  assert.equal(configured.configured, true);
+  assert.equal(JSON.parse(readFileSync(configPath, "utf8")).deepseekApiKey, "sk-test-key-1234567890");
 
   client.send({ type: "health", requestId: "health-1" });
   const health = await client.waitFor((message) => message.type === "healthResult");

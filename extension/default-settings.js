@@ -4,6 +4,8 @@ export const MAX_SELECTION_LENGTH = 50_000;
 
 export const ANSWER_LANGUAGES = Object.freeze(["en", "zh-CN", "de", "fr", "it", "auto"]);
 export const UI_LANGUAGES = Object.freeze(["auto", "en", "zh-CN", "de", "fr", "it"]);
+export const PROVIDERS = Object.freeze(["codex", "deepseek-api", "reasonix"]);
+export const DEEPSEEK_REASONING = Object.freeze(["off", "high", "max"]);
 
 export const PERFORMANCE_PRESETS = Object.freeze({
   "luna-xhigh": Object.freeze({ model: "gpt-5.6-luna", reasoning: "xhigh" }),
@@ -25,6 +27,8 @@ Selected text:
 
 export const DEFAULT_SETTINGS = Object.freeze({
   uiLanguage: "auto",
+  provider: "codex",
+  deepseekReasoning: "high",
   performanceMode: "luna-xhigh",
   model: "gpt-5.6-luna",
   customModel: "",
@@ -62,6 +66,12 @@ export function normalizeSettings(value = {}) {
   const uiLanguage = UI_LANGUAGES.includes(merged.uiLanguage)
     ? merged.uiLanguage
     : DEFAULT_SETTINGS.uiLanguage;
+  const provider = PROVIDERS.includes(merged.provider)
+    ? merged.provider
+    : DEFAULT_SETTINGS.provider;
+  const deepseekReasoning = DEEPSEEK_REASONING.includes(merged.deepseekReasoning)
+    ? merged.deepseekReasoning
+    : DEFAULT_SETTINGS.deepseekReasoning;
   const requestedModel = isLegacyFastPreset ? DEFAULT_SETTINGS.model : merged.model;
   const model = typeof requestedModel === "string" ? requestedModel.slice(0, 80) : "";
   const customModel = typeof merged.customModel === "string"
@@ -71,7 +81,18 @@ export function normalizeSettings(value = {}) {
     ? merged.promptTemplate.slice(0, 8_000)
     : DEFAULT_PROMPT_TEMPLATE;
 
-  return { uiLanguage, performanceMode, model, customModel, reasoning, language, responseLength, promptTemplate };
+  return {
+    uiLanguage,
+    provider,
+    deepseekReasoning,
+    performanceMode,
+    model,
+    customModel,
+    reasoning,
+    language,
+    responseLength,
+    promptTemplate
+  };
 }
 
 export function effectiveModel(settings) {
@@ -85,6 +106,12 @@ export function effectiveReasoning(settings) {
 export function modelLabel(model) {
   if (!model) return "Codex 推荐";
   return model;
+}
+
+export function providerModelLabel(settings = {}) {
+  if (settings.provider === "deepseek-api") return "DeepSeek V4 Flash · API";
+  if (settings.provider === "reasonix") return "DeepSeek V4 Flash · Reasonix";
+  return modelLabel(effectiveModel(settings));
 }
 
 export function reasoningLabel(reasoning) {
