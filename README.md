@@ -1,6 +1,6 @@
 # GPT 划词解释
 
-> **简体中文** · [English](README-EN.md)
+> **简体中文** · [English](README-EN.md) · [Italiano](README-IT.md)
 
 在 Chrome、Chromium 或 Microsoft Edge 中选中文字，右键选择“用 GPT 解释”，可通过本机 Codex CLI、DeepSeek V4 Flash 直连 API，或 Reasonix CLI 生成解释。
 
