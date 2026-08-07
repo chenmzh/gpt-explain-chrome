@@ -1,14 +1,16 @@
 # GPT 划词解释
 
-在 Chrome 中选中文字，右键选择“用 GPT 解释”，可通过本机 Codex CLI、DeepSeek V4 Flash 直连 API，或 Reasonix CLI 生成解释。
+> **简体中文** · [English](README-EN.md)
 
-> Select text in Chrome and ask GPT to explain it in an independent popup window. Choose Codex with a ChatGPT subscription, the direct DeepSeek V4 Flash API, or DeepSeek through Reasonix CLI.
+在 Chrome 或 Microsoft Edge 中选中文字，右键选择“用 GPT 解释”，可通过本机 Codex CLI、DeepSeek V4 Flash 直连 API，或 Reasonix CLI 生成解释。
+
+> Select text in Chrome or Microsoft Edge and ask GPT to explain it in an independent popup window. Choose Codex with a ChatGPT subscription, the direct DeepSeek V4 Flash API, or DeepSeek through Reasonix CLI.
 
 ![独立解释窗口：Markdown、公式与语言切换](popup-preview-v0.3.1.png)
 
-这是一个面向个人使用的 macOS / Windows Chrome 扩展。Chrome 扩展本身不能直接运行本机程序，因此项目由两部分组成：
+这是一个面向个人使用的 macOS / Windows Chrome 或 Edge 扩展。浏览器扩展本身不能直接运行本机程序，因此项目由两部分组成：
 
-- `extension/`：Manifest V3 Chrome 扩展，负责右键菜单、独立结果窗口和设置。
+- `extension/`：Manifest V3 浏览器扩展，负责右键菜单、独立结果窗口和设置。
 - `native-host/`：Native Messaging Host，负责安全调用已登录的 Codex CLI、DeepSeek API 或隔离运行的 Reasonix CLI。
 
 ## 功能
@@ -37,8 +39,8 @@
 
 ## 系统要求
 
-- macOS，或 64 位 Windows 10 / Windows 11
-- Google Chrome 116 或更高版本
+- macOS、64 位 Windows 10 / Windows 11，或 Linux（Chrome、Chromium 或 Edge）
+- Google Chrome 116 或更高版本（或 Chromium / Microsoft Edge）
 - Node.js 18 或更高版本
 - 以下三种提供方至少配置一种：
   - Codex CLI 0.144.0 或更高版本，以及可使用 Codex 的 ChatGPT 账号
@@ -85,6 +87,33 @@ chmod +x native-host/install-macos.sh native-host/uninstall-macos.sh
 
 安装完成后，打开扩展的“详情”→“扩展程序选项”，点击“检测连接”。
 
+#### Linux
+
+在终端进入项目目录，然后运行：
+
+```bash
+chmod +x native-host/install-linux.sh native-host/uninstall-linux.sh
+./native-host/install-linux.sh 你的扩展ID
+```
+
+安装程序会：
+
+- 自动找到当前终端使用的 `node`，并按需检测 `codex` 与 `reasonix`
+- 把 Host 安装到 `~/.local/share/GPTExplainBridge`
+- 为 Chrome 在 `~/.config/google-chrome/NativeMessagingHosts/` 创建 `com.codex.gpt_explainer` Native Messaging manifest
+- 只允许你传入的扩展 ID 连接该 Host
+
+如需同时注册 Chromium 或 Edge，第二个参数传入逗号分隔的浏览器列表：
+
+```bash
+./native-host/install-linux.sh 你的扩展ID chrome,chromium,edge
+```
+
+- Chromium 使用 `~/.config/chromium/NativeMessagingHosts/`，Edge 使用 `~/.config/microsoft-edge/NativeMessagingHosts/`
+- 同一 `extension` 文件夹在 Chrome、Chromium 与 Edge 中的扩展 ID 相同
+
+安装完成后，打开扩展的“详情”→“扩展程序选项”，点击“检测连接”。
+
 #### Windows
 
 在 PowerShell 中进入项目目录，然后运行：
@@ -107,7 +136,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-wi
 
 ### 给其他人安装
 
-两个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.4.3.zip` 和 `GPT-Explain-Chrome-Windows-v0.4.3.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，并使用自己的扩展 ID 与账号或 API Key 完成配置。
+三个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.4.3.zip`、`GPT-Explain-Chrome-Windows-v0.4.3.zip` 和 `GPT-Explain-Chrome-Linux-v0.4.3.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，Linux 用户运行 `native-host/install-linux.sh`，并使用自己的扩展 ID 与账号或 API Key 完成配置。
 
 普通 Chrome 通常会限制从 Chrome Web Store 之外直接安装 CRX，因此本项目的自用分享版采用“解压后加载 `extension` 文件夹 + 本地 Host 安装程序”。如需面向公众的一键安装和自动更新，仍需发布 Chrome Web Store，并另外分发 Native Host 安装器。
 
@@ -183,13 +212,19 @@ macOS：
 ./native-host/uninstall-macos.sh
 ```
 
+Linux：
+
+```bash
+./native-host/uninstall-linux.sh
+```
+
 Windows：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\uninstall-windows.ps1
 ```
 
-然后在 `chrome://extensions` 移除扩展。
+然后在 `chrome://extensions`（或 `edge://extensions`）移除扩展。
 
 ## 开发与验证
 
@@ -204,6 +239,12 @@ npm run check
 
 ```bash
 bash scripts/build-distribution.sh
+```
+
+生成名称独立的 Linux 安装目录与 ZIP：
+
+```bash
+bash scripts/build-distribution-linux.sh
 ```
 
 生成名称独立的 Windows 安装目录与 ZIP：
