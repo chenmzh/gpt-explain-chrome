@@ -98,7 +98,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-wi
 - 自动找到当前 Windows 用户使用的 `node.exe`，并按需检测 Codex 与 Reasonix CLI；同时支持原生 `.exe` 与 npm 的 `.cmd` 启动器
 - 把 Host 安装到 `%LOCALAPPDATA%\GPTExplainBridge`
 - 在 `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.codex.gpt_explainer` 注册 Native Messaging manifest，不需要管理员权限
+- 同时支持 Microsoft Edge：安装程序默认还会在 `HKCU\Software\Microsoft\Edge\NativeMessagingHosts\com.codex.gpt_explainer` 注册；用 Edge 打开 `edge://extensions` 并加载同一 `extension` 文件夹即可使用（同一文件夹在 Chrome 与 Edge 中的扩展 ID 相同）
 - 只允许你传入的扩展 ID 连接该 Host
+
+如果只想注册 Chrome 或 Edge 之一，可加参数 `-Browsers chrome` 或 `-Browsers edge`。
 
 安装完成后刷新扩展，打开“扩展程序选项”，点击“检测连接”。
 
