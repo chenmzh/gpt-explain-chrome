@@ -1,6 +1,6 @@
 # GPT Explain in Page
 
-> **English** · [简体中文](README.md)
+> **English** · [简体中文](README.md) · [Italiano](README-IT.md)
 
 Select text in Chrome, Chromium, or Microsoft Edge and ask GPT to explain it in an independent popup window. Choose Codex with a ChatGPT subscription, the direct DeepSeek V4 Flash API, or DeepSeek through Reasonix CLI.
 
