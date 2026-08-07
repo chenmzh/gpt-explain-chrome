@@ -2,13 +2,13 @@
 
 > **简体中文** · [English](README-EN.md)
 
-在 Chrome 或 Microsoft Edge 中选中文字，右键选择“用 GPT 解释”，可通过本机 Codex CLI、DeepSeek V4 Flash 直连 API，或 Reasonix CLI 生成解释。
+在 Chrome、Chromium 或 Microsoft Edge 中选中文字，右键选择“用 GPT 解释”，可通过本机 Codex CLI、DeepSeek V4 Flash 直连 API，或 Reasonix CLI 生成解释。
 
-> Select text in Chrome or Microsoft Edge and ask GPT to explain it in an independent popup window. Choose Codex with a ChatGPT subscription, the direct DeepSeek V4 Flash API, or DeepSeek through Reasonix CLI.
+> Select text in Chrome, Chromium, or Microsoft Edge and ask GPT to explain it in an independent popup window. Choose Codex with a ChatGPT subscription, the direct DeepSeek V4 Flash API, or DeepSeek through Reasonix CLI.
 
 ![独立解释窗口：Markdown、公式与语言切换](popup-preview-v0.3.1.png)
 
-这是一个面向个人使用的 macOS / Windows Chrome 或 Edge 扩展。浏览器扩展本身不能直接运行本机程序，因此项目由两部分组成：
+这是一个面向个人使用的 macOS / Windows / Linux 跨平台 Chrome 或 Edge 扩展。浏览器扩展本身不能直接运行本机程序，因此项目由两部分组成：
 
 - `extension/`：Manifest V3 浏览器扩展，负责右键菜单、独立结果窗口和设置。
 - `native-host/`：Native Messaging Host，负责安全调用已登录的 Codex CLI、DeepSeek API 或隔离运行的 Reasonix CLI。
