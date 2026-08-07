@@ -10,15 +10,21 @@ const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const projectFiles = [
   "native-host/install-macos.sh",
   "native-host/uninstall-macos.sh",
+  "native-host/install-linux.sh",
+  "native-host/uninstall-linux.sh",
   "native-host/install-windows.ps1",
   "native-host/uninstall-windows.ps1",
   "distribution/Install.command",
   "distribution/Uninstall.command",
+  "distribution/Install-Linux.sh",
+  "distribution/Uninstall-Linux.sh",
   "distribution/Install-Windows.cmd",
   "distribution/Uninstall-Windows.cmd",
   "distribution/README.md",
+  "distribution/README-Linux.md",
   "distribution/README-Windows.md",
   "scripts/build-distribution.sh",
+  "scripts/build-distribution-linux.sh",
   "scripts/build-distribution-windows.ps1"
 ];
 
@@ -80,9 +86,14 @@ for (const file of jsFiles) {
 const shellFiles = [
   "native-host/install-macos.sh",
   "native-host/uninstall-macos.sh",
+  "native-host/install-linux.sh",
+  "native-host/uninstall-linux.sh",
   "distribution/Install.command",
   "distribution/Uninstall.command",
-  "scripts/build-distribution.sh"
+  "distribution/Install-Linux.sh",
+  "distribution/Uninstall-Linux.sh",
+  "scripts/build-distribution.sh",
+  "scripts/build-distribution-linux.sh"
 ];
 
 const bashProbe = spawnSync("bash", ["--version"], { encoding: "utf8" });
