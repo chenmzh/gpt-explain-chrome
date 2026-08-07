@@ -5,13 +5,28 @@ param(
   [string]$CodexPath = "",
   [string]$ReasonixPath = "",
   [string]$InstallRoot = "",
+  [string]$Browsers = "chrome,edge",
   [switch]$SkipRegistry,
   [switch]$NonInteractive
 )
 
 $ErrorActionPreference = "Stop"
 $HostName = "com.codex.gpt_explainer"
-$RegistryPath = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$HostName"
+$SupportedBrowsers = @("chrome", "edge")
+$BrowserNames = @($Browsers -split "," | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
+if ($BrowserNames.Count -eq 0) { $BrowserNames = @("chrome", "edge") }
+foreach ($Browser in $BrowserNames) {
+  if ($SupportedBrowsers -notcontains $Browser) {
+    throw "Unsupported browser: $Browser / 不支持的浏览器：$Browser（仅支持 chrome、edge）。"
+  }
+}
+$RegistryPaths = @()
+if ($BrowserNames -contains "chrome") {
+  $RegistryPaths += "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$HostName"
+}
+if ($BrowserNames -contains "edge") {
+  $RegistryPaths += "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$HostName"
+}
 
 function Resolve-ApplicationPath {
   param([Parameter(Mandatory = $true)][string]$Name)
@@ -116,16 +131,16 @@ if (-not $InstallRoot) {
 $InstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
 
 if (-not $ExtensionId -and -not $NonInteractive) {
-  Write-Host "1. Open chrome://extensions in Google Chrome."
+  Write-Host "1. Open chrome://extensions in Google Chrome or edge://extensions in Microsoft Edge."
   Write-Host "2. Turn on Developer mode."
   Write-Host "3. Click Load unpacked and select the extension folder in this package."
-  Write-Host "4. Copy the 32-character extension ID shown by Chrome."
+  Write-Host "4. Copy the 32-character extension ID shown by the browser."
   Write-Host ""
   $ExtensionId = Read-Host "Paste extension ID / 粘贴扩展 ID"
 }
 
 if ($ExtensionId -notmatch '^[a-p]{32}$') {
-  throw "The Chrome extension ID must contain 32 letters from a to p / Chrome 扩展 ID 必须是 32 位 a-p 字符。"
+  throw "The extension ID must contain 32 letters from a to p / 扩展 ID 必须是 32 位 a-p 字符。"
 }
 
 if (-not $NodePath) {
@@ -293,7 +308,7 @@ Move-Item -LiteralPath $LauncherBuildPath -Destination $LauncherPath
 
 $Manifest = [ordered]@{
   name = $HostName
-  description = "Local Codex bridge for GPT Explain Chrome extension (Windows)"
+  description = "Local Codex bridge for GPT Explain Chrome/Edge extension (Windows)"
   path = $LauncherPath
   type = "stdio"
   allowed_origins = @("chrome-extension://$ExtensionId/")
@@ -301,8 +316,10 @@ $Manifest = [ordered]@{
 Write-Utf8WithoutBom -Path $ManifestPath -Content (($Manifest | ConvertTo-Json -Depth 4) + "`n")
 
 if (-not $SkipRegistry) {
-  New-Item -Path $RegistryPath -Force | Out-Null
-  Set-Item -Path $RegistryPath -Value $ManifestPath
+  foreach ($RegistryPath in $RegistryPaths) {
+    New-Item -Path $RegistryPath -Force | Out-Null
+    Set-Item -Path $RegistryPath -Value $ManifestPath
+  }
 }
 
 Write-Host ""
@@ -311,7 +328,10 @@ Write-Host "Host:     $LauncherPath"
 Write-Host "Manifest: $ManifestPath"
 if ($CodexLaunch) { Write-Host "Codex:    $($CodexLaunch.Executable)" } else { Write-Host "Codex:    not detected (optional)" }
 if ($ReasonixCommand) { Write-Host "Reasonix: $ReasonixCommand" } else { Write-Host "Reasonix: not detected (optional)" }
-if (-not $SkipRegistry) { Write-Host "Registry: $RegistryPath" }
+if (-not $SkipRegistry) {
+  Write-Host "Browsers: $($BrowserNames -join ', ')"
+  foreach ($RegistryPath in $RegistryPaths) { Write-Host "Registry: $RegistryPath" }
+}
 Write-Host "Reload the extension, open its Options page, and click Check connection."
 Write-Host "请刷新扩展，打开扩展选项，然后点击“检测连接”。"
 
