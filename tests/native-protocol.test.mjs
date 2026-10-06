@@ -19,6 +19,8 @@ function nativeClient(child) {
   let buffer = Buffer.alloc(0);
   const messages = [];
   const waiters = [];
+  let stderr = "";
+  child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
 
   child.stdout.on("data", (chunk) => {
     buffer = Buffer.concat([buffer, chunk]);
@@ -49,7 +51,7 @@ function nativeClient(child) {
         const timer = setTimeout(() => {
           const index = waiters.indexOf(waiter);
           if (index >= 0) waiters.splice(index, 1);
-          reject(new Error(`Timed out waiting for native message. Received: ${JSON.stringify(messages)}`));
+          reject(new Error(`Timed out waiting for native message. Received: ${JSON.stringify(messages)}; stderr: ${stderr}`));
         }, timeoutMs);
         const originalResolve = waiter.resolve;
         waiter.resolve = (value) => { clearTimeout(timer); originalResolve(value); };
@@ -102,6 +104,8 @@ test("native protocol reports health and returns an explanation", async (t) => {
   const health = await client.waitFor((message) => message.type === "healthResult");
   assert.equal(health.ok, true);
   assert.equal(health.models[0].id, "gpt-5.6-sol");
+  assert.deepEqual(health.models.map((model) => model.id), ["gpt-5.6-sol", "gpt-5.6-terra"]);
+  assert.deepEqual(health.models[1].supportedReasoningEfforts, ["low", "medium"]);
   assert.equal(health.defaultModel, "GPT-5.6-Sol");
 
   client.send({

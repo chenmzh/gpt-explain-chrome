@@ -28,7 +28,15 @@ function handle(message) {
     send({
       id: message.id,
       result: {
-        data: [
+        data: message.params?.cursor ? [
+          {
+            model: "gpt-5.6-terra", displayName: "GPT-5.6-Terra", isDefault: false,
+            defaultReasoningEffort: "medium",
+            supportedReasoningEfforts: [{ reasoningEffort: "low" }, { reasoningEffort: "medium" }]
+          },
+          { model: "hidden-model", hidden: true },
+          { model: "image-only", inputModalities: ["image"] }
+        ] : [
           {
             id: "gpt-5.6-sol",
             model: "gpt-5.6-sol",
@@ -40,16 +48,9 @@ function handle(message) {
               { reasoningEffort: "medium" },
               { reasoningEffort: "high" }
             ]
-          },
-          {
-            id: "gpt-5.6-terra",
-            model: "gpt-5.6-terra",
-            displayName: "GPT-5.6-Terra",
-            isDefault: false,
-            defaultReasoningEffort: "medium",
-            supportedReasoningEfforts: [{ reasoningEffort: "low" }, { reasoningEffort: "medium" }]
           }
-        ]
+        ],
+        nextCursor: message.params?.cursor ? null : "next-page"
       }
     });
     return;

@@ -1,4 +1,7 @@
-import { DEFAULT_SETTINGS, PERFORMANCE_PRESETS, normalizeSettings } from "./default-settings.js";
+import {
+  DEFAULT_SETTINGS, PERFORMANCE_PRESETS, normalizeSettings, performancePresetSettings,
+  supportedReasoningOptions
+} from "./default-settings.js";
 import { createTranslator } from "./options-i18n.js";
 
 const params = new URLSearchParams(location.search);
@@ -31,6 +34,7 @@ const toast = document.querySelector("#saveToast");
 let toastTimer = null;
 let i18n = createTranslator("auto", navigator.language);
 let currentModels = [];
+let healthRequestId = "";
 let connectionState = {
   kind: "",
   titleKey: "connectionUntested",
@@ -68,10 +72,30 @@ function updateModelOptions(models) {
     option.textContent = `${model.displayName || model.id}${model.isDefault ? ` · ${t("accountDefault")}` : ""}`;
     fields.model.insertBefore(option, customOption || null);
   }
-  fields.model.value = [...fields.model.options].some((option) => option.value === selected)
-    ? selected
-    : "";
+  ensureModelOption(selected);
+  fields.model.value = selected;
+  updatePresetAvailability();
+  updateReasoningOptions();
+  updatePresetFields(false);
   updateCustomField();
+}
+
+function ensureModelOption(model) {
+  if (!model || [...fields.model.options].some((option) => option.value === model)) return;
+  const option = document.createElement("option");
+  option.value = model;
+  option.textContent = `${model} · ${t("configuredModel")}`;
+  fields.model.insertBefore(option, fields.model.querySelector('option[value="custom"]'));
+}
+
+function updateReasoningOptions() {
+  const allowed = supportedReasoningOptions(currentModels,
+    fields.model.value === "custom" ? fields.customModel.value.trim() : fields.model.value);
+  for (const option of fields.reasoning.options) {
+    option.hidden = Boolean(option.value) && !allowed.includes(option.value);
+    option.disabled = option.hidden;
+  }
+  if (fields.reasoning.selectedOptions[0]?.disabled) fields.reasoning.value = "";
 }
 
 function applyLanguage(preference) {
@@ -85,6 +109,7 @@ function applyLanguage(preference) {
     element.placeholder = t(element.dataset.i18nPlaceholder);
   }
   if (currentModels.length) updateModelOptions(currentModels);
+  updatePresetAvailability();
   renderConnection();
 }
 
@@ -110,7 +135,7 @@ function setKeyStatus(key, kind = "") {
 
 function updatePresetFields(applyValues = true) {
   let preset = fields.performanceMode.value;
-  const values = PERFORMANCE_PRESETS[preset];
+  const values = performancePresetSettings(preset, currentModels);
   if (values && applyValues) {
     fields.model.value = values.model;
     fields.reasoning.value = values.reasoning;
@@ -121,11 +146,20 @@ function updatePresetFields(applyValues = true) {
     fields.performanceMode.value = "manual";
   }
   modelSection.dataset.preset = preset;
+  updateReasoningOptions();
   updateCustomField();
+}
+
+function updatePresetAvailability() {
+  for (const option of fields.performanceMode.options) {
+    const tier = PERFORMANCE_PRESETS[option.value]?.tier;
+    option.disabled = Boolean(tier) && !currentModels.some((model) => model.id.endsWith(`-${tier}`));
+  }
 }
 
 function fillForm(settings) {
   const value = normalizeSettings(settings);
+  ensureModelOption(value.model);
   for (const key of [
     "uiLanguage", "provider", "deepseekReasoning", "performanceMode", "model", "customModel", "reasoning",
     "language", "responseLength", "promptTemplate"
@@ -160,12 +194,16 @@ function showToast(messageKey = "settingsSaved") {
 }
 
 fields.uiLanguage.addEventListener("change", () => applyLanguage(fields.uiLanguage.value));
-fields.provider.addEventListener("change", updateProviderFields);
+fields.provider.addEventListener("change", () => {
+  updateProviderFields();
+  if (!isPreview) checkConnection();
+});
 fields.performanceMode.addEventListener("change", () => updatePresetFields(true));
 fields.model.addEventListener("change", () => {
   fields.performanceMode.value = "manual";
   updatePresetFields(false);
 });
+fields.customModel.addEventListener("input", updateReasoningOptions);
 fields.reasoning.addEventListener("change", () => {
   fields.performanceMode.value = "manual";
   updatePresetFields(false);
@@ -183,11 +221,25 @@ form.addEventListener("submit", async (event) => {
 
 document.querySelector("#resetButton").addEventListener("click", () => fillForm(DEFAULT_SETTINGS));
 
-document.querySelector("#checkConnection").addEventListener("click", async () => {
+async function checkConnection() {
+  if (isPreview) return;
+  const requestId = crypto.randomUUID();
+  healthRequestId = requestId;
   setConnection("checking", "checking", "checkingHost");
-  const response = await chrome.runtime.sendMessage({ type: "checkHost" });
-  if (!response?.ok) setConnection("error", "connectionFailed", "hostUnavailable");
-});
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "checkHost", provider: fields.provider.value, requestId
+    });
+    if (!response?.ok && healthRequestId === requestId) {
+      setConnection("error", "connectionFailed", "hostUnavailable");
+    }
+  } catch {
+    if (healthRequestId === requestId) setConnection("error", "connectionFailed", "hostUnavailable");
+  }
+}
+
+document.querySelector("#checkConnection").addEventListener("click", checkConnection);
+document.querySelector("#refreshModels").addEventListener("click", checkConnection);
 
 document.querySelector("#saveDeepSeekKey").addEventListener("click", async () => {
   const apiKey = fields.deepseekApiKey.value.trim();
@@ -214,6 +266,8 @@ document.querySelector("#copyId").addEventListener("click", async () => {
 
 if (!isPreview) {
   chrome.runtime.onMessage.addListener((message) => {
+    if (["healthProgress", "healthResult"].includes(message.type)
+      && message.requestId !== healthRequestId) return;
     if (message.type === "healthProgress") {
       setConnection("checking", "checking", message.provider && message.provider !== "codex"
         ? "connectingDeepSeek"
@@ -261,6 +315,7 @@ async function initialize() {
   const stored = await chrome.storage.local.get("settings");
   fillForm(stored.settings || DEFAULT_SETTINGS);
   document.querySelector("#extensionId").textContent = chrome.runtime.id;
+  if (fields.provider.value === "codex") await checkConnection();
 }
 
 if (isPreview) {
@@ -271,7 +326,7 @@ if (isPreview) {
       : "en"
   });
   document.querySelector("#extensionId").textContent = "abcdefghijklmnopabcdefghijklmnop";
-  setConnection("ok", "connectionOk", "connectionReady", { plan: " · Plus", model: "GPT-5.6-Sol" });
+  setConnection("", "connectionUntested", "connectionHelp");
 } else {
   initialize().catch(() => setConnection("error", "connectionFailed", "readSettingsFailed"));
 }

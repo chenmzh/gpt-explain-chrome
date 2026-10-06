@@ -28,10 +28,11 @@ Questa è un'estensione Chrome o Edge multipiattaforma per uso personale, su mac
 - Supporta l'API ufficiale di streaming Chat Completions di DeepSeek V4 Flash, con possibilità di disattivare il thinking oppure selezionare High o Max
 - Supporta DeepSeek V4 Flash tramite la CLI Reasonix; Reasonix gira in una directory di configurazione temporanea separata e non carica la tua configurazione MCP
 - Copia, interrompi e spiega di nuovo
-- Predefinito Luna / XHigh, passabile a Luna / Max, Sol / Medium, Sol / High, oppure un modello personalizzato come GPT-5.6 Sol, Terra, Luna e altri
-- Legge dinamicamente i modelli disponibili dal tuo account ChatGPT corrente; ripiega sul modello predefinito dell'account quando una vecchia configurazione non è disponibile
+- Usa per impostazione predefinita il modello e il ragionamento consigliati dal Codex locale, senza fissare una versione GPT; puoi scegliere le strategie bilanciata, accurata, l'ultimo Luna disponibile o un modello manuale
+- Carica automaticamente l'elenco completo dei modelli dal Codex locale connesso quando apri le impostazioni; Aggiorna modelli aggiorna l'elenco e un vecchio modello non disponibile ripiega sul predefinito dell'account
+- Le opzioni di ragionamento seguono le capacità del modello selezionato; le strategie Luna sono disabilitate quando Codex locale non offre Luna
 - La politica delle prestazioni riempie solo le combinazioni consigliate; la tua scelta esplicita di modello o reasoning vince sempre nell'interfaccia
-- Scegli reasoning Low, Medium, High, Extra High, Max o Ultra
+- Scegli reasoning None, Minimal, Low, Medium, High, Extra High, Max o Ultra quando supportato dal modello locale, oppure usa il predefinito
 - Cambia la lingua della risposta direttamente nella finestra di spiegazione tra English (predefinita per le nuove installazioni), Simplified Chinese, Deutsch, Français, Italiano, oppure segui l'originale; vale dalla spiegazione o domanda successiva
 - La pagina delle impostazioni segue automaticamente la lingua del browser oppure può essere impostata manualmente tra English, Simplified Chinese, Deutsch, Français, Italiano; lingua dell'interfaccia e lingua delle risposte sono indipendenti
 - Controlla lo stato di accesso Codex, la chiave API DeepSeek o lo stato della CLI Reasonix per il provider corrente
@@ -136,7 +137,7 @@ Dopo l'installazione, ricarica l'estensione, apri "Opzioni estensione" e clicca 
 
 ### Installare per altre persone
 
-I tre sistemi usano pacchetti di condivisione dai nomi chiari: `GPT-Explain-Chrome-macOS-v0.4.3.zip`, `GPT-Explain-Chrome-Windows-v0.4.3.zip` e `GPT-Explain-Chrome-Linux-v0.4.3.zip`. Contengono solo l'estensione, l'installer Native Host corrispondente e le istruzioni — nessun `config.json` generato localmente, nessun accesso Codex e nessuna chiave API. Su macOS fai doppio clic su `Install.command`; su Windows fai doppio clic su `Install-Windows.cmd`; su Linux esegui `native-host/install-linux.sh`. Poi configura con il tuo ID estensione e il tuo account o la tua chiave API.
+I tre sistemi usano pacchetti di condivisione dai nomi chiari: `GPT-Explain-Chrome-macOS-v0.4.4.zip`, `GPT-Explain-Chrome-Windows-v0.4.4.zip` e `GPT-Explain-Chrome-Linux-v0.4.4.zip`. Contengono solo l'estensione, l'installer Native Host corrispondente e le istruzioni — nessun `config.json` generato localmente, nessun accesso Codex e nessuna chiave API. Su macOS fai doppio clic su `Install.command`; su Windows fai doppio clic su `Install-Windows.cmd`; su Linux esegui `native-host/install-linux.sh`. Poi configura con il tuo ID estensione e il tuo account o la tua chiave API.
 
 Chrome normalmente blocca le installazioni CRX dall'esterno del Chrome Web Store, quindi la versione di condivisione per uso personale usa "carica la cartella `extension` non pacchettizzata + un installer Host locale". Per un'installazione pubblica con un clic e gli aggiornamenti automatici, dovresti comunque pubblicare sul Chrome Web Store e distribuire separatamente l'installer Native Host.
 
@@ -199,6 +200,8 @@ codex login status
 ### Modello non disponibile
 
 I modelli disponibili variano in base al piano ChatGPT, alle politiche dello spazio di lavoro e alla versione di Codex. Scegli prima "Codex raccomandato (auto)"; puoi anche aggiornare Codex e riprovare a specificare un modello.
+
+Il selettore legge modelli e capacità di ragionamento tramite `model/list` del tuo `codex app-server` locale. L'elenco si aggiorna all'apertura delle impostazioni e con Aggiorna modelli o Verifica connessione. Aggiorna di nuovo dopo aver aggiornato Codex o cambiato account. Le scelte manuali esistenti vengono conservate; seleziona e salva la strategia automatica per seguire il modello consigliato da Codex.
 
 ### Le modifiche al codice non hanno effetto
 

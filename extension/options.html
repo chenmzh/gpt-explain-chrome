@@ -68,14 +68,16 @@
           <div class="section-index">01</div>
           <div class="section-body">
             <h2 data-i18n="modelSectionTitle">Model &amp; reasoning</h2>
-            <p class="section-note" data-i18n="modelSectionNote">Luna / XHigh is the default preset. Available models depend on the current Codex account.</p>
+            <p class="section-note" data-i18n="modelSectionNote">Models and reasoning options are refreshed from your local Codex. Auto follows its recommended model.</p>
+            <button id="refreshModels" class="secondary-button" type="button" data-i18n="refreshModels">Refresh models</button>
             <label class="preset-field">
               <span data-i18n="performanceStrategy">Speed / accuracy strategy</span>
               <select id="performanceMode" name="performanceMode">
-                <option value="luna-xhigh" data-i18n="presetLunaXHigh">Luna XHigh (recommended) · Luna / XHigh</option>
+                <option value="auto" data-i18n="presetAuto">Codex recommended · model and effort auto</option>
+                <option value="luna-xhigh" data-i18n="presetLunaXHigh">Latest available Luna / XHigh</option>
                 <option value="luna-max" data-i18n="presetLunaMax">Luna Max · Luna / Max</option>
-                <option value="balanced" data-i18n="presetBalanced">Balanced · Sol / Medium</option>
-                <option value="accurate" data-i18n="presetAccurate">Accurate · Sol / High</option>
+                <option value="balanced" data-i18n="presetBalanced">Balanced · recommended model / Medium</option>
+                <option value="accurate" data-i18n="presetAccurate">Accurate · recommended model / High</option>
                 <option value="manual" data-i18n="presetManual">Custom</option>
               </select>
             </label>
@@ -84,9 +86,6 @@
                 <span data-i18n="model">Model</span>
                 <select id="model" name="model">
                   <option value="" data-i18n="modelAuto">Codex recommended (auto)</option>
-                  <option value="gpt-5.6-sol">GPT-5.6 · Sol</option>
-                  <option value="gpt-5.6-terra">GPT-5.6 · Terra</option>
-                  <option value="gpt-5.6-luna">GPT-5.6 · Luna</option>
                   <option value="custom" data-i18n="customModelOption">Custom model name…</option>
                 </select>
               </label>
@@ -94,6 +93,8 @@
                 <span data-i18n="reasoning">Reasoning effort</span>
                 <select id="reasoning" name="reasoning">
                   <option value="" data-i18n="reasoningDefault">Model default</option>
+                  <option value="none" data-i18n="reasoningNone">None · No reasoning</option>
+                  <option value="minimal" data-i18n="reasoningMinimal">Minimal</option>
                   <option value="low" data-i18n="reasoningLow">Low · Fast</option>
                   <option value="medium" data-i18n="reasoningMedium">Medium · Balanced</option>
                   <option value="high" data-i18n="reasoningHigh">High · Deep</option>
@@ -105,7 +106,7 @@
             </div>
             <label id="customModelField" class="custom-field" hidden>
               <span data-i18n="customModelLabel">Custom model name</span>
-              <input id="customModel" name="customModel" type="text" maxlength="80" placeholder="For example: gpt-5.6-sol" data-i18n-placeholder="customModelPlaceholder">
+              <input id="customModel" name="customModel" type="text" maxlength="80" placeholder="Model ID from your local Codex" data-i18n-placeholder="customModelPlaceholder">
             </label>
           </div>
         </section>

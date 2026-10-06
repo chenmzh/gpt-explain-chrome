@@ -12,6 +12,7 @@ const {
   buildThreadParams,
   buildTurnParams,
   extractAppServerAnswer,
+  getModelCatalog,
   deepSeekRequestBody,
   normalizeModelCatalog,
   parseDeepSeekSseLine,
@@ -263,4 +264,78 @@ test("uses the account default when the configured model is unavailable", () => 
   assert.equal(resolved.model, "gpt-5.6-sol");
   assert.equal(resolved.reasoning, "medium");
   assert.equal(resolved.fallback, true);
+});
+
+test("catalogs keep visible text models, deduplicate IDs, and distinguish missing and empty effort metadata", () => {
+  const catalog = normalizeModelCatalog([
+    null,
+    { model: "hidden", hidden: true },
+    { model: "image-only", inputModalities: ["image"] },
+    { model: "-invalid" },
+    { model: "text-model", defaultReasoningEffort: "none", supportedReasoningEfforts: ["none", { reasoningEffort: "minimal" }, "none"] },
+    { model: "text-model" },
+    { model: "older-model" },
+    { model: "no-effort", supportedReasoningEfforts: [], defaultReasoningEffort: "high" }
+  ]);
+  assert.deepEqual(catalog.map((model) => model.id), ["text-model", "older-model", "no-effort"]);
+  assert.deepEqual(catalog[0].supportedReasoningEfforts, ["none", "minimal"]);
+  assert.equal(catalog[1].supportedReasoningEfforts, null);
+  assert.equal(catalog[2].defaultReasoningEffort, "");
+  assert.equal(resolveModelSettings({ model: "no-effort", reasoning: "high" }, catalog).reasoning, "");
+  assert.equal(resolveModelSettings({ model: "older-model", reasoning: "high" }, catalog).reasoning, "high");
+});
+
+test("model aliases are sent unchanged when present in the local catalog", () => {
+  const catalog = normalizeModelCatalog([{ model: "gpt-5.6" }, { model: "account-default", isDefault: true }]);
+  assert.equal(resolveModelSettings({ model: "gpt-5.6", reasoning: "" }, catalog).model, "gpt-5.6");
+  assert.equal(resolveModelSettings({ model: "gpt-5.6", reasoning: "" }, []).model, "gpt-5.6");
+  assert.equal(resolveModelSettings({ model: "", reasoning: "" }, catalog).model, "account-default");
+});
+
+test("catalog retrieval handles pagination, cache refresh, and server process replacement", async () => {
+  const calls = [];
+  let model = "local-v1";
+  const server = {
+    child: {},
+    async request(method, params) {
+      calls.push({ method, params });
+      return params.cursor
+        ? { data: [{ model, isDefault: true }], nextCursor: null }
+        : { data: [{ model: "hidden", hidden: true }], nextCursor: "second-page" };
+    }
+  };
+  assert.equal((await getModelCatalog(server))[0].id, "local-v1");
+  assert.equal(calls[1].params.cursor, "second-page");
+  await getModelCatalog(server);
+  assert.equal(calls.length, 2);
+  model = "local-v2";
+  assert.equal((await getModelCatalog(server, true))[0].id, "local-v2");
+  server.child = {};
+  model = "local-v3";
+  assert.equal((await getModelCatalog(server))[0].id, "local-v3");
+  assert.equal(calls.length, 6);
+});
+
+test("catalog retrieval rejects broken pagination and recovers on the next request", async () => {
+  let broken = true;
+  const server = { async request() {
+    return { data: [{ model: "local-model" }], nextCursor: broken ? "repeated" : null };
+  } };
+  await assert.rejects(getModelCatalog(server), /分页/);
+  broken = false;
+  assert.equal((await getModelCatalog(server))[0].id, "local-model");
+});
+
+test("concurrent catalog requests share one in-flight refresh", async () => {
+  let finish;
+  let calls = 0;
+  const server = { request() {
+    calls += 1;
+    return new Promise((resolve) => { finish = resolve; });
+  } };
+  const first = getModelCatalog(server);
+  const second = getModelCatalog(server, true);
+  finish({ data: [{ model: "local-model" }] });
+  assert.deepEqual(await first, await second);
+  assert.equal(calls, 1);
 });

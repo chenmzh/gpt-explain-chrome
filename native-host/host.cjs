@@ -14,7 +14,7 @@ const MAX_FOLLOWUP_LENGTH = 12_000;
 const OUTPUT_CHUNK_SIZE = 16_000;
 const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 const RPC_TIMEOUT_MS = 30_000;
-const ALLOWED_REASONING = new Set(["", "low", "medium", "high", "xhigh", "max", "ultra"]);
+const ALLOWED_REASONING = new Set(["", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
 const ALLOWED_LANGUAGES = new Set(["en", "zh-CN", "de", "fr", "it", "auto"]);
 const ALLOWED_LENGTHS = new Set(["brief", "normal", "detailed"]);
 const ALLOWED_PROVIDERS = new Set(["codex", "deepseek-api", "reasonix"]);
@@ -271,28 +271,33 @@ function buildTurnParams(threadId, prompt, settings, workDir) {
 
 function normalizeModelCatalog(data) {
   if (!Array.isArray(data)) return [];
+  const seen = new Set();
   return data.flatMap((entry) => {
     const id = normalizeString(entry?.model || entry?.id, 80);
-    if (!id || !MODEL_PATTERN.test(id)) return [];
+    if (!id || !MODEL_PATTERN.test(id) || seen.has(id) || entry.hidden === true) return [];
+    if (Array.isArray(entry.inputModalities) && !entry.inputModalities.includes("text")) return [];
+    seen.add(id);
     const efforts = Array.isArray(entry.supportedReasoningEfforts)
-      ? entry.supportedReasoningEfforts
+      ? [...new Set(entry.supportedReasoningEfforts
         .map((value) => typeof value === "string" ? value : value?.reasoningEffort)
-        .filter((value) => ALLOWED_REASONING.has(value))
-      : [];
+        .filter((value) => value && ALLOWED_REASONING.has(value)))]
+      : null;
+    const defaultEffort = ALLOWED_REASONING.has(entry.defaultReasoningEffort)
+      && (!efforts || efforts.includes(entry.defaultReasoningEffort))
+      ? entry.defaultReasoningEffort : "";
     return [{
       id,
       displayName: normalizeString(entry.displayName, 120) || id,
       isDefault: Boolean(entry.isDefault),
-      defaultReasoningEffort: ALLOWED_REASONING.has(entry.defaultReasoningEffort)
-        ? entry.defaultReasoningEffort
-        : "",
-      supportedReasoningEfforts: efforts
+      defaultReasoningEffort: defaultEffort,
+      supportedReasoningEfforts: efforts,
+      inputModalities: Array.isArray(entry.inputModalities) ? entry.inputModalities : ["text", "image"]
     }];
   });
 }
 
 function resolveModelSettings(settings, catalog) {
-  const requestedModel = settings.model === "gpt-5.6" ? "gpt-5.6-sol" : settings.model;
+  const requestedModel = settings.model;
   if (!catalog.length) {
     return {
       ...settings,
@@ -307,7 +312,7 @@ function resolveModelSettings(settings, catalog) {
     || catalog.find((model) => model.isDefault)
     || catalog[0];
   const supportsRequestedEffort = !settings.reasoning
-    || !selected.supportedReasoningEfforts.length
+    || !Array.isArray(selected.supportedReasoningEfforts)
     || selected.supportedReasoningEfforts.includes(settings.reasoning);
   const reasoning = supportsRequestedEffort
     ? settings.reasoning
@@ -406,7 +411,7 @@ class AppServerClient {
     child.stdin.on("error", () => {});
 
     await this._request("initialize", {
-      clientInfo: { name: "gpt_explain_chrome", title: "GPT Explain Chrome", version: "0.4.3" }
+      clientInfo: { name: "gpt_explain_chrome", title: "GPT Explain Chrome", version: "0.4.4" }
     });
     this._send({ method: "initialized", params: {} });
     this.ready = true;
@@ -498,16 +503,46 @@ class AppServerClient {
 }
 
 let appServer = null;
-let modelCatalogCache = null;
+const modelCatalogCaches = new WeakMap();
 
 async function getModelCatalog(server, force = false) {
-  const fresh = modelCatalogCache && Date.now() - modelCatalogCache.updatedAt < 5 * 60 * 1000;
-  if (!force && fresh) return modelCatalogCache.models;
-  const result = await server.request("model/list", { limit: 100, includeHidden: false });
-  const models = normalizeModelCatalog(result?.data);
-  if (!models.length) throw new Error("Codex 没有返回可用模型");
-  modelCatalogCache = { models, updatedAt: Date.now() };
-  return models;
+  const cache = modelCatalogCaches.get(server);
+  const sameProcess = cache && cache.child === server.child;
+  if (sameProcess && cache.pending) return cache.pending;
+  if (!force && sameProcess && Date.now() - cache.updatedAt < 5 * 60 * 1000) return cache.models;
+  const nextCache = { child: server.child };
+  modelCatalogCaches.set(server, nextCache);
+  nextCache.pending = (async () => {
+    const entries = [];
+    const cursors = new Set();
+    let cursor;
+    do {
+      const result = await server.request("model/list", {
+        limit: 100, includeHidden: false, ...(cursor ? { cursor } : {})
+      });
+      if (!Array.isArray(result?.data)) throw new Error("Codex 返回了无效的模型列表");
+      entries.push(...result.data);
+      cursor = result.nextCursor;
+      if (cursor) {
+        if (typeof cursor !== "string" || cursors.has(cursor) || cursors.size >= 100) {
+          throw new Error("Codex 模型列表分页无效");
+        }
+        cursors.add(cursor);
+      }
+    } while (cursor);
+    const models = normalizeModelCatalog(entries);
+    if (!models.length) throw new Error("Codex 没有返回可用文本模型");
+    Object.assign(nextCache, { models, updatedAt: Date.now(), child: server.child });
+    return models;
+  })();
+  try {
+    return await nextCache.pending;
+  } catch (error) {
+    if (modelCatalogCaches.get(server) === nextCache) modelCatalogCaches.delete(server);
+    throw error;
+  } finally {
+    delete nextCache.pending;
+  }
 }
 
 function findRun(params = {}) {
@@ -572,7 +607,7 @@ function ensureAppServer(config) {
     appServer = new AppServerClient(config, {
       onNotification: handleAppServerNotification,
       onFailure: (error) => {
-        modelCatalogCache = null;
+        modelCatalogCaches.delete(appServer);
         conversations.clear();
         const detail = safeMessage(error);
         for (const run of [...activeRuns.values()]) {
@@ -1246,6 +1281,7 @@ module.exports = {
   buildThreadParams,
   buildTurnParams,
   extractAppServerAnswer,
+  getModelCatalog,
   normalizeModelCatalog,
   deepSeekRequestBody,
   parseDeepSeekSseLine,
