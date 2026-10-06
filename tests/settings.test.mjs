@@ -8,7 +8,9 @@ import {
   PERFORMANCE_PRESETS,
   effectiveModel,
   effectiveReasoning,
-  normalizeSettings
+  normalizeSettings,
+  performancePresetSettings,
+  supportedReasoningOptions
 } from "../extension/default-settings.js";
 
 test("the default prompt teaches step by step and migrates the old template", () => {
@@ -24,20 +26,21 @@ test("the default prompt teaches step by step and migrates the old template", ()
     "My custom teaching prompt");
 });
 
-test("new installs use Luna with xhigh reasoning by default", () => {
+test("new installs follow the local Codex recommended model and effort", () => {
   assert.equal(DEFAULT_SETTINGS.provider, "codex");
   assert.equal(DEFAULT_SETTINGS.deepseekReasoning, "high");
-  assert.equal(DEFAULT_SETTINGS.performanceMode, "luna-xhigh");
-  assert.equal(DEFAULT_SETTINGS.model, "gpt-5.6-luna");
-  assert.equal(DEFAULT_SETTINGS.reasoning, "xhigh");
+  assert.equal(DEFAULT_SETTINGS.performanceMode, "auto");
+  assert.equal(DEFAULT_SETTINGS.model, "");
+  assert.equal(DEFAULT_SETTINGS.reasoning, "");
   assert.deepEqual(Object.keys(PERFORMANCE_PRESETS), [
+    "auto",
     "luna-xhigh",
     "luna-max",
     "balanced",
     "accurate"
   ]);
   assert.deepEqual(PERFORMANCE_PRESETS["luna-max"], {
-    model: "gpt-5.6-luna",
+    tier: "luna",
     reasoning: "max"
   });
 });
@@ -50,15 +53,15 @@ test("accepts both DeepSeek providers and rejects unknown providers", () => {
   assert.equal(normalizeSettings({ deepseekReasoning: "ultra" }).deepseekReasoning, "high");
 });
 
-test("the retired Terra preset migrates to the new Luna default", () => {
+test("the retired automatic preset migrates to Codex auto", () => {
   const settings = normalizeSettings({
     performanceMode: "fast",
     model: "gpt-5.6-terra",
     reasoning: "low"
   });
-  assert.equal(settings.performanceMode, "luna-xhigh");
-  assert.equal(settings.model, "gpt-5.6-luna");
-  assert.equal(settings.reasoning, "xhigh");
+  assert.equal(settings.performanceMode, "auto");
+  assert.equal(settings.model, "");
+  assert.equal(settings.reasoning, "");
 });
 
 test("new installs default to English and accept every supported answer language", () => {
@@ -91,4 +94,35 @@ test("custom model selection is sent exactly as displayed", () => {
   });
   assert.equal(effectiveModel(settings), "gpt-5.5");
   assert.equal(effectiveReasoning(settings), "medium");
+});
+
+test("Luna presets resolve the newest locally available version and its supported effort", () => {
+  const models = [
+    { id: "gpt-5.6-luna", supportedReasoningEfforts: ["xhigh", "max"] },
+    { id: "gpt-6-luna", isDefault: true, supportedReasoningEfforts: ["medium", "high"], defaultReasoningEffort: "medium" }
+  ];
+  assert.deepEqual(performancePresetSettings("luna-max", models), { model: "gpt-6-luna", reasoning: "medium" });
+  assert.deepEqual(performancePresetSettings("auto", models), { model: "", reasoning: "" });
+  assert.deepEqual(performancePresetSettings("balanced", models), { model: "", reasoning: "medium" });
+  assert.equal(performancePresetSettings("manual", models), null);
+});
+
+test("reasoning options follow the selected or recommended model and tolerate older catalogs", () => {
+  const models = [
+    { id: "old-model" },
+    { id: "local-default", isDefault: true, supportedReasoningEfforts: ["none", "minimal", "medium"] },
+    { id: "no-effort", supportedReasoningEfforts: [] }
+  ];
+  assert.deepEqual(supportedReasoningOptions(models), ["none", "minimal", "medium"]);
+  assert.deepEqual(supportedReasoningOptions(models, "no-effort"), []);
+  assert.ok(supportedReasoningOptions(models, "old-model").includes("high"));
+  for (const reasoning of ["none", "minimal"]) {
+    assert.equal(normalizeSettings({ reasoning }).reasoning, reasoning);
+  }
+});
+
+test("existing explicit model and reasoning settings survive the automatic default change", () => {
+  const settings = normalizeSettings({ performanceMode: "luna-max", model: "gpt-5.6-luna", reasoning: "max" });
+  assert.equal(settings.model, "gpt-5.6-luna");
+  assert.equal(settings.reasoning, "max");
 });

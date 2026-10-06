@@ -28,10 +28,11 @@
 - 支持 DeepSeek V4 Flash 官方 Chat Completions 流式 API，可选择关闭思考、High 或 Max
 - 支持基于 Reasonix CLI 的 DeepSeek V4 Flash 调用；Reasonix 在独立临时配置目录中运行，不加载用户 MCP 配置
 - 复制、停止和重新解释
-- 默认使用 Luna / XHigh，可切换 Luna / Max、Sol / Medium、Sol / High，或自定义 GPT-5.6 Sol、Terra、Luna 和其他模型
-- 从当前 ChatGPT 账号动态读取可用模型；旧配置不可用时自动回退到账号默认模型
+- 默认跟随本机 Codex 推荐的模型与推理强度，不固定 GPT 版本；可选均衡、严谨、当前可用的最新 Luna 预设，或手动指定模型
+- 打开设置页时自动读取本机已登录 Codex 的完整可用模型列表，支持“刷新模型”；旧配置不可用时自动回退到账号默认模型
+- 推理强度选项随所选模型的能力更新；本机 Codex 没有提供 Luna 时，对应预设不可选
 - 性能策略只负责填写推荐组合；手动选择模型或 reasoning 后，以界面中的明确选择为准
-- 选择 Low、Medium、High、Extra High、Max、Ultra reasoning
+- 根据本机模型支持情况选择 None、Minimal、Low、Medium、High、Extra High、Max、Ultra reasoning，或使用模型默认值
 - 在解释窗口直接切换 English（新安装默认）、简体中文、Deutsch、Français、Italiano 或跟随原文；下一条解释或追问生效
 - 设置页界面可自动跟随浏览器，或手动切换 English、简体中文、Deutsch、Français、Italiano；界面语言与回答语言互不影响
 - 按当前提供方检查 Codex 登录、DeepSeek API Key 或 Reasonix CLI 状态
@@ -136,7 +137,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\native-host\install-wi
 
 ### 给其他人安装
 
-三个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.4.3.zip`、`GPT-Explain-Chrome-Windows-v0.4.3.zip` 和 `GPT-Explain-Chrome-Linux-v0.4.3.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，Linux 用户运行 `native-host/install-linux.sh`，并使用自己的扩展 ID 与账号或 API Key 完成配置。
+三个系统使用名称明确区分的分享包：`GPT-Explain-Chrome-macOS-v0.4.4.zip`、`GPT-Explain-Chrome-Windows-v0.4.4.zip` 和 `GPT-Explain-Chrome-Linux-v0.4.4.zip`。它们只包含扩展、对应系统的 Native Host 安装程序和说明，不包含本机生成的 `config.json`、Codex 登录或任何 API Key。macOS 用户双击 `Install.command`，Windows 用户双击 `Install-Windows.cmd`，Linux 用户运行 `native-host/install-linux.sh`，并使用自己的扩展 ID 与账号或 API Key 完成配置。
 
 普通 Chrome 通常会限制从 Chrome Web Store 之外直接安装 CRX，因此本项目的自用分享版采用“解压后加载 `extension` 文件夹 + 本地 Host 安装程序”。如需面向公众的一键安装和自动更新，仍需发布 Chrome Web Store，并另外分发 Native Host 安装器。
 
@@ -199,6 +200,8 @@ codex login status
 ### 模型不可用
 
 不同 ChatGPT 套餐、工作区策略和 Codex 版本可用的模型不同。先选择“Codex 推荐（自动）”；也可以更新 Codex 后再尝试指定模型。
+
+模型选择器通过本机 `codex app-server` 的 `model/list` 获取列表与推理能力。打开设置页会自动刷新，也可点击“刷新模型”或“检测连接”手动刷新。更新本机 Codex 或切换登录账号后再次刷新即可看到其当前提供的模型。已有的手动模型选择会保留；要持续跟随 Codex 推荐模型，请选择自动预设并保存。
 
 ### 修改代码后没有生效
 

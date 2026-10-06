@@ -4,6 +4,7 @@ import {
   HOST_NAME,
   MAX_SELECTION_LENGTH,
   MENU_ID,
+  PROVIDERS,
   effectiveModel,
   effectiveReasoning,
   normalizeSettings
@@ -665,8 +666,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     if (message.type === "checkHost") {
       const settings = await loadSettings();
-      const requestId = makeId("health");
-      connectNative().postMessage({ type: "health", requestId, provider: settings.provider });
+      const requestId = typeof message.requestId === "string" && message.requestId
+        ? message.requestId.slice(0, 160) : makeId("health");
+      const provider = PROVIDERS.includes(message.provider) ? message.provider : settings.provider;
+      connectNative().postMessage({ type: "health", requestId, provider });
       sendResponse({ ok: true, requestId });
       return;
     }

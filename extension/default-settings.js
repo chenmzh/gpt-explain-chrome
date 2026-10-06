@@ -6,13 +6,45 @@ export const ANSWER_LANGUAGES = Object.freeze(["en", "zh-CN", "de", "fr", "it", 
 export const UI_LANGUAGES = Object.freeze(["auto", "en", "zh-CN", "de", "fr", "it"]);
 export const PROVIDERS = Object.freeze(["codex", "deepseek-api", "reasonix"]);
 export const DEEPSEEK_REASONING = Object.freeze(["off", "high", "max"]);
+export const REASONING_EFFORTS = Object.freeze(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
 
 export const PERFORMANCE_PRESETS = Object.freeze({
-  "luna-xhigh": Object.freeze({ model: "gpt-5.6-luna", reasoning: "xhigh" }),
-  "luna-max": Object.freeze({ model: "gpt-5.6-luna", reasoning: "max" }),
-  balanced: Object.freeze({ model: "gpt-5.6-sol", reasoning: "medium" }),
-  accurate: Object.freeze({ model: "gpt-5.6-sol", reasoning: "high" })
+  auto: Object.freeze({ model: "", reasoning: "" }),
+  "luna-xhigh": Object.freeze({ tier: "luna", reasoning: "xhigh" }),
+  "luna-max": Object.freeze({ tier: "luna", reasoning: "max" }),
+  balanced: Object.freeze({ model: "", reasoning: "medium" }),
+  accurate: Object.freeze({ model: "", reasoning: "high" })
 });
+
+export function selectedCatalogModel(models, model = "") {
+  return models.find((entry) => entry.id === model)
+    || (!model ? models.find((entry) => entry.isDefault) || models[0] : null);
+}
+
+export function supportedReasoningOptions(models, model = "") {
+  const selected = selectedCatalogModel(models, model);
+  // Missing capability metadata on older Codex versions is not an empty capability list.
+  return Array.isArray(selected?.supportedReasoningEfforts)
+    ? selected.supportedReasoningEfforts.filter((effort) => REASONING_EFFORTS.includes(effort))
+    : [...REASONING_EFFORTS];
+}
+
+export function performancePresetSettings(mode, models = []) {
+  const preset = PERFORMANCE_PRESETS[mode];
+  if (!preset) return null;
+  let model = preset.model || "";
+  if (preset.tier) {
+    const candidates = models.filter((entry) => entry.id.endsWith(`-${preset.tier}`));
+    candidates.sort((a, b) => b.id.localeCompare(a.id, "en", { numeric: true }));
+    model = candidates[0]?.id || "";
+  }
+  const selected = selectedCatalogModel(models, model);
+  const efforts = supportedReasoningOptions(models, model);
+  const reasoning = !preset.reasoning || efforts.includes(preset.reasoning)
+    ? preset.reasoning
+    : selected?.defaultReasoningEffort || "";
+  return { model, reasoning };
+}
 
 export const LEGACY_DEFAULT_PROMPT_TEMPLATE = `Please explain the selected text.
 
@@ -47,10 +79,10 @@ export const DEFAULT_SETTINGS = Object.freeze({
   uiLanguage: "auto",
   provider: "codex",
   deepseekReasoning: "high",
-  performanceMode: "luna-xhigh",
-  model: "gpt-5.6-luna",
+  performanceMode: "auto",
+  model: "",
   customModel: "",
-  reasoning: "xhigh",
+  reasoning: "",
   language: "en",
   responseLength: "normal",
   promptTemplate: DEFAULT_PROMPT_TEMPLATE
@@ -72,7 +104,7 @@ export function normalizeSettings(value = {}) {
     ? DEFAULT_SETTINGS.performanceMode
     : "manual";
   const requestedReasoning = isLegacyFastPreset ? DEFAULT_SETTINGS.reasoning : merged.reasoning;
-  const reasoning = ["", "low", "medium", "high", "xhigh", "max", "ultra"].includes(requestedReasoning)
+  const reasoning = ["", ...REASONING_EFFORTS].includes(requestedReasoning)
     ? requestedReasoning
     : DEFAULT_SETTINGS.reasoning;
   const responseLength = ["brief", "normal", "detailed"].includes(merged.responseLength)
@@ -138,6 +170,8 @@ export function providerModelLabel(settings = {}) {
 export function reasoningLabel(reasoning) {
   return ({
     "": "默认",
+    none: "None",
+    minimal: "Minimal",
     low: "Low",
     medium: "Medium",
     high: "High",

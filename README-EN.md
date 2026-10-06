@@ -28,10 +28,11 @@ This is a personal-use cross-platform Chrome or Edge extension for macOS / Windo
 - Supports the official DeepSeek V4 Flash Chat Completions streaming API with optional thinking off, High, or Max
 - Supports DeepSeek V4 Flash via the Reasonix CLI; Reasonix runs in a separate temporary config directory and does not load your MCP configuration
 - Copy, stop, and re-explain
-- Defaults to Luna / XHigh, switchable to Luna / Max, Sol / Medium, Sol / High, or a custom model like GPT-5.6 Sol, Terra, Luna, and others
-- Dynamically reads the available models from your current ChatGPT account; falls back to the account default when an old config is unavailable
+- Defaults to the model and reasoning effort recommended by your local Codex, without pinning a GPT version; choose balanced, accurate, the latest available Luna presets, or a manual model
+- Automatically loads the complete available model catalog from your signed-in local Codex when settings open; supports Refresh models and falls back to the account default if an old model is unavailable
+- Reasoning options follow the selected model's capabilities; Luna presets are disabled when local Codex offers no Luna model
 - The performance policy only fills in recommended combinations; your explicit model or reasoning choice always wins in the UI
-- Choose Low, Medium, High, Extra High, Max, or Ultra reasoning
+- Choose None, Minimal, Low, Medium, High, Extra High, Max, or Ultra reasoning when supported by the local model, or use its default
 - Switch the answer language directly in the explain window between English (default for new installs), Simplified Chinese, Deutsch, Français, Italiano, or follow the original; effective from the next explanation or follow-up
 - The settings page follows the browser language automatically or can be switched manually between English, Simplified Chinese, Deutsch, Français, Italiano; UI language and answer language are independent
 - Checks the Codex sign-in, DeepSeek API Key, or Reasonix CLI status for the current provider
@@ -136,7 +137,7 @@ After installation, reload the extension, open "Extension options", and click "C
 
 ### Installing for other people
 
-The three systems use clearly named share packages: `GPT-Explain-Chrome-macOS-v0.4.3.zip`, `GPT-Explain-Chrome-Windows-v0.4.3.zip`, and `GPT-Explain-Chrome-Linux-v0.4.3.zip`. They contain only the extension, the matching Native Host installer, and instructions — no locally generated `config.json`, no Codex sign-in, and no API Key. On macOS double-click `Install.command`; on Windows double-click `Install-Windows.cmd`; on Linux run `native-host/install-linux.sh`. Then configure with your own extension ID and account or API Key.
+The three systems use clearly named share packages: `GPT-Explain-Chrome-macOS-v0.4.4.zip`, `GPT-Explain-Chrome-Windows-v0.4.4.zip`, and `GPT-Explain-Chrome-Linux-v0.4.4.zip`. They contain only the extension, the matching Native Host installer, and instructions — no locally generated `config.json`, no Codex sign-in, and no API Key. On macOS double-click `Install.command`; on Windows double-click `Install-Windows.cmd`; on Linux run `native-host/install-linux.sh`. Then configure with your own extension ID and account or API Key.
 
 Regular Chrome usually blocks CRX installs from outside the Chrome Web Store, so this project's self-use share version uses "load the `extension` folder unpacked + a local Host installer". For a public one-click install and auto-update, you would still need to publish to the Chrome Web Store and distribute the Native Host installer separately.
 
@@ -199,6 +200,8 @@ codex login status
 ### Model unavailable
 
 The models available differ by ChatGPT plan, workspace policy, and Codex version. First choose "Codex recommended (auto)"; you can also update Codex and try specifying a model again.
+
+The picker reads models and reasoning capabilities through `model/list` on your local `codex app-server`. Opening settings refreshes the catalog automatically; Refresh models and Check connection also refresh it. Refresh again after updating local Codex or switching accounts. Existing manual model choices are preserved; select and save the automatic preset to keep following the Codex recommendation.
 
 ### Changes to the code do not take effect
 
